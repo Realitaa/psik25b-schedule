@@ -11,41 +11,83 @@ useHead({
   }
 })
 
-const title = 'Nuxt Starter Template'
-const description = 'A production-ready starter template powered by Nuxt UI. Build beautiful, accessible, and performant applications in minutes, not hours.'
+const title = 'PSIK25B Schedule'
+const description = 'Sistem Jadwal Perkuliahan & Manajamen Kelas PSIK25B.'
 
 useSeoMeta({
   title,
   description,
   ogTitle: title,
   ogDescription: description,
-  ogImage: 'https://ui.nuxt.com/assets/templates/nuxt/starter-light.png',
   twitterCard: 'summary_large_image'
 })
+
+const { user, loggedIn, clear } = useUserSession()
+const router = useRouter()
+const toast = useToast()
+
+async function handleLogout() {
+  await clear()
+  toast.add({
+    title: 'Berhasil Logout',
+    description: 'Anda telah keluar dari akun.',
+    color: 'neutral'
+  })
+  await router.push('/login')
+}
 </script>
 
 <template>
   <UApp>
+    <NuxtLoadingIndicator color="fuchsia" />
     <UHeader>
       <template #left>
-        <NuxtLink to="/">
-          <AppLogo class="w-auto h-6 shrink-0" />
+        <NuxtLink
+          to="/"
+          class="font-bold text-lg text-highlighted flex items-center gap-2"
+        >
+          <UIcon
+            name="i-lucide-calendar"
+            class="size-6 text-primary"
+          />
+          <span>PSIK25B</span>
         </NuxtLink>
-
-        <TemplateMenu />
       </template>
 
       <template #right>
         <UColorModeButton />
 
-        <UButton
-          to="https://github.com/nuxt-ui-templates/starter"
-          target="_blank"
-          icon="i-simple-icons-github"
-          aria-label="GitHub"
-          color="neutral"
-          variant="ghost"
-        />
+        <template
+          v-if="loggedIn"
+        >
+          <UBadge
+            color="primary"
+            variant="subtle"
+            class="mr-2"
+          >
+            <UIcon
+              name="i-lucide-user"
+              class="mr-1 size-3.5"
+            />
+            {{ user?.name || user?.username }}
+          </UBadge>
+          <UButton
+            label="Logout"
+            icon="i-lucide-log-out"
+            color="neutral"
+            variant="ghost"
+            @click="handleLogout"
+          />
+        </template>
+        <template v-else>
+          <UButton
+            to="/login"
+            label="Login"
+            icon="i-lucide-log-in"
+            color="primary"
+            variant="solid"
+          />
+        </template>
       </template>
     </UHeader>
 
@@ -58,13 +100,13 @@ useSeoMeta({
     <UFooter>
       <template #left>
         <p class="text-sm text-muted">
-          Built with Nuxt UI • © {{ new Date().getFullYear() }}
+          Built with Nuxt UI & NuxtHub • © {{ new Date().getFullYear() }}
         </p>
       </template>
 
       <template #right>
         <UButton
-          to="https://github.com/nuxt-ui-templates/starter"
+          to="https://github.com"
           target="_blank"
           icon="i-simple-icons-github"
           aria-label="GitHub"

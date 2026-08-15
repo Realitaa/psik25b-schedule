@@ -22,9 +22,9 @@ export default defineNuxtConfig({
   hub: {
     db: {
       dialect: 'sqlite',
-      driver: 'd1',
+      driver: process.env.NUXT_HUB_DB_DATABASE_ID ? 'd1' : undefined,
       connection: {
-        databaseId: (globalThis as unknown as { process?: { env?: Record<string, string> } }).process?.env?.NUXT_HUB_DB_DATABASE_ID || '<database-id>'
+        databaseId: process.env.NUXT_HUB_DB_DATABASE_ID || undefined
       }
     }
   },
