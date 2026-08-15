@@ -39,7 +39,7 @@ async function handleLogout() {
 
 <template>
   <UApp>
-    <NuxtLoadingIndicator color="fuchsia" />
+    <NuxtLoadingIndicator color="teal" />
     <UHeader>
       <template #left>
         <NuxtLink

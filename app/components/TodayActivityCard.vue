@@ -13,7 +13,7 @@ defineProps<{
   <UCard
     :class="[
       'transition-all duration-300 shadow-sm border rounded-xl overflow-hidden',
-      type === 'current' ? 'border-fuchsia-500 dark:border-fuchsia-400 bg-fuchsia-50/20 dark:bg-fuchsia-950/10 ring-2 ring-fuchsia-500/20' : '',
+      type === 'current' ? 'border-teal-500 dark:border-teal-400 bg-teal-50/20 dark:bg-teal-950/10 ring-2 ring-teal-500/20' : '',
       type === 'incoming' ? 'border-blue-500 dark:border-blue-400 bg-blue-50/20 dark:bg-blue-950/10 ring-2 ring-blue-500/10' : '',
       type === 'holiday' ? 'border-green-500 dark:border-green-400 bg-green-50/20 dark:bg-green-950/10 ring-2 ring-green-500/10' : ''
     ]"
@@ -58,7 +58,7 @@ defineProps<{
         <div
           :class="[
             'p-3 rounded-full',
-            type === 'current' ? 'bg-fuchsia-100 dark:bg-fuchsia-950/30 text-fuchsia-500 dark:text-fuchsia-400' : 'bg-blue-100 dark:bg-blue-950/30 text-blue-500 dark:text-blue-400'
+            type === 'current' ? 'bg-teal-100 dark:bg-teal-950/30 text-teal-500 dark:text-teal-400' : 'bg-blue-100 dark:bg-blue-950/30 text-blue-500 dark:text-blue-400'
           ]"
         >
           <UIcon
