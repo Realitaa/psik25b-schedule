@@ -15,14 +15,13 @@ export function useDayStatus() {
 
     const year = now.getFullYear()
     const month = now.getMonth() + 1
-    const dateNum = now.getDate()
-    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(dateNum).padStart(2, '0')}`
+    const dateStr = formatYMDDate(now)
 
     // 1. Weekend Check (Sabtu / Minggu)
     if (dayOfWeek === 0 || dayOfWeek === 6) {
       dayStatus.value = {
         status: 'Weekend',
-        description: 'Akhir Pekan (Hari Libur)',
+        description: 'Akhir Pekan',
         dateStr
       }
       loading.value = false
@@ -43,7 +42,7 @@ export function useDayStatus() {
       } else {
         dayStatus.value = {
           status: 'Weekday',
-          description: 'Hari Kerja / Perkuliahan Normal',
+          description: 'Hari Kuliah',
           dateStr
         }
       }
@@ -51,7 +50,7 @@ export function useDayStatus() {
       console.error('[useDayStatus error]', err)
       dayStatus.value = {
         status: 'Weekday',
-        description: 'Hari Kerja / Perkuliahan Normal',
+        description: 'Hari Kuliah',
         dateStr
       }
     } finally {

@@ -15,48 +15,10 @@ const { data } = await useAsyncData('public-schedule-data', async () => {
   }
 })
 
-// Day Status logic
+// Day Status & Date/Time & WhatsApp composables
 const { dayStatus } = useDayStatus()
-
-// Date helpers
-const formatIndonesianDate = (date: Date) => {
-  return new Intl.DateTimeFormat('id-ID', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  }).format(date)
-}
-
-const todayFormatted = computed(() => formatIndonesianDate(new Date()))
-
-// Time calculations for subjects schedule
-const dayMap = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
-const todayDayName = computed(() => {
-  const now = new Date()
-  return dayMap[now.getDay()]
-})
-
-const timeToMinutes = (timeStr: string | null) => {
-  if (!timeStr) return 0
-  const [h, m] = timeStr.split(':').map(Number)
-  return (h || 0) * 60 + (m || 0)
-}
-
-const currentMinutes = ref(new Date().getHours() * 60 + new Date().getMinutes())
-
-// Update current minutes every minute to keep active classes live
-let timer: ReturnType<typeof setInterval> | null = null
-onMounted(() => {
-  timer = setInterval(() => {
-    const now = new Date()
-    currentMinutes.value = now.getHours() * 60 + now.getMinutes()
-  }, 60000)
-})
-
-onUnmounted(() => {
-  if (timer) clearInterval(timer)
-})
+const { todayDayName, currentMinutes, todayFormatted, timeToMinutes } = useDateTime()
+const { formatWhatsAppLink } = useWhatsApp()
 
 // Filter and classify today's subjects
 const todaySubjects = computed(() => {
@@ -99,9 +61,30 @@ const activeYear = computed(() => {
   return data.value.academicYearsData.years.find(y => y.id === activeId) || null
 })
 
+const dayOrderMap: Record<string, number> = {
+  Senin: 1,
+  Selasa: 2,
+  Rabu: 3,
+  Kamis: 4,
+  Jumat: 5,
+  Sabtu: 6,
+  Minggu: 7
+}
+
 const activeSubjects = computed(() => {
   if (!data.value?.subjects || !activeYear.value) return []
-  return data.value.subjects.filter(s => s.academicYearId === activeYear.value?.id)
+  const filtered = data.value.subjects.filter(s => s.academicYearId === activeYear.value?.id)
+
+  return filtered.sort((a, b) => {
+    const dayA = dayOrderMap[a.day || ''] || 99
+    const dayB = dayOrderMap[b.day || ''] || 99
+
+    if (dayA !== dayB) {
+      return dayA - dayB
+    }
+
+    return timeToMinutes(a.timeStart) - timeToMinutes(b.timeStart)
+  })
 })
 
 // Columns definitions for Tables
@@ -118,15 +101,6 @@ const lecturerColumns = [
   { accessorKey: 'nip', header: 'NIP' },
   { accessorKey: 'phone', header: 'No HP / WhatsApp' }
 ]
-
-// WhatsApp formatting
-const formatWhatsAppLink = (phone: string) => {
-  let cleaned = phone.replace(/[^0-9]/g, '')
-  if (cleaned.startsWith('0')) {
-    cleaned = '62' + cleaned.substring(1)
-  }
-  return `https://wa.me/${cleaned}`
-}
 </script>
 
 <template>

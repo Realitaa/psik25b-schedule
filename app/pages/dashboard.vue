@@ -58,7 +58,7 @@ const subjectForm = reactive({
   lecturerShortnames: [] as string[]
 })
 
-const daysList = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
+const daysList = DAYS_LIST
 
 // Fetch All Data
 async function fetchData() {
