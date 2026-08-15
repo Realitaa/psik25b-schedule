@@ -225,10 +225,10 @@ async function confirmDelete() {
     await fetchData()
   } catch (err: unknown) {
     const e = err as { data?: { statusMessage?: string } }
-    toast.add({ 
-      title: `Gagal Menghapus ${deleteType.value === 'lecturer' ? 'Dosen' : 'Mata Kuliah'}`, 
-      description: e.data?.statusMessage, 
-      color: 'error' 
+    toast.add({
+      title: `Gagal Menghapus ${deleteType.value === 'lecturer' ? 'Dosen' : 'Mata Kuliah'}`,
+      description: e.data?.statusMessage,
+      color: 'error'
     })
   } finally {
     deletingItem.value = false
@@ -777,7 +777,10 @@ const subjectColumns = [
     </FormModal>
 
     <!-- MODAL: Konfirmasi Hapus Custom -->
-    <UModal v-model:open="showDeleteConfirmModal" title="Konfirmasi Hapus">
+    <UModal
+      v-model:open="showDeleteConfirmModal"
+      title="Konfirmasi Hapus"
+    >
       <template #body>
         <p class="text-sm text-muted">
           Apakah Anda yakin ingin menghapus {{ deleteType === 'lecturer' ? 'dosen' : 'mata kuliah' }}

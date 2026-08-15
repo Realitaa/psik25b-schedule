@@ -95,18 +95,16 @@ async function handleLogout() {
       <NuxtPage />
     </UMain>
 
-    <USeparator icon="i-simple-icons-nuxtdotjs" />
-
     <UFooter>
       <template #left>
         <p class="text-sm text-muted">
-          Built with Nuxt UI & NuxtHub • © {{ new Date().getFullYear() }}
+          Made with &hearts; by Realitaa
         </p>
       </template>
 
       <template #right>
         <UButton
-          to="https://github.com"
+          to="https://github.com/Realitaa/psik25b-schedule"
           target="_blank"
           icon="i-simple-icons-github"
           aria-label="GitHub"
