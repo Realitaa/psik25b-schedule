@@ -44,7 +44,7 @@ async function onSubmit(event: FormSubmitEvent<{ username?: string, password?: s
       description: 'Selamat datang kembali!',
       color: 'success'
     })
-    await router.push('/')
+    await router.push('/dashboard')
   } catch (err: unknown) {
     const errorObj = err as { data?: { statusMessage?: string }, statusMessage?: string }
     toast.add({
