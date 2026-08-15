@@ -19,6 +19,16 @@ export default defineNuxtConfig({
 
   compatibilityDate: '2026-06-30',
 
+  hub: {
+    db: {
+      dialect: 'sqlite',
+      driver: 'd1',
+      connection: {
+        databaseId: (globalThis as unknown as { process?: { env?: Record<string, string> } }).process?.env?.NUXT_HUB_DB_DATABASE_ID || '<database-id>'
+      }
+    }
+  },
+
   eslint: {
     config: {
       stylistic: {
