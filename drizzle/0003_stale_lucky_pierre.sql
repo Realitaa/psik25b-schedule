@@ -1,0 +1,1 @@
+ALTER TABLE `events` ADD `author_id` integer REFERENCES users(id);
