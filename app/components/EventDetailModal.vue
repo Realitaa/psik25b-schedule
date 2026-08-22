@@ -16,6 +16,31 @@ const isOpen = computed({
   set: (val: boolean) => emit('update:open', val)
 })
 
+const fullEventDetails = ref<EventSelect | null>(null)
+const isDetailsLoading = ref(false)
+
+watch(() => props.open, async (newVal) => {
+  if (newVal && props.event?.id) {
+    isDetailsLoading.value = true
+    fullEventDetails.value = null
+    try {
+      fullEventDetails.value = await $fetch<EventSelect>(`/api/events/${props.event.id}`)
+    } catch (err) {
+      console.error('Gagal memuat detail event:', err)
+    } finally {
+      isDetailsLoading.value = false
+    }
+  } else if (!newVal) {
+    fullEventDetails.value = null
+  }
+})
+
+const authorName = computed(() => {
+  const author = fullEventDetails.value?.author || props.event?.author
+  if (!author) return ''
+  return author.name || author.username
+})
+
 function formatEndDate(dateStr?: string | null) {
   if (!dateStr) return 'Tanpa batas waktu (Permanen)'
   try {
@@ -70,7 +95,7 @@ function formatEndDate(dateStr?: string | null) {
           </div>
 
           <div
-            v-if="event.author"
+            v-if="event.author || fullEventDetails?.author"
             class="flex items-center justify-between gap-2 flex-wrap"
           >
             <span class="text-muted">Dibuat Oleh:</span>
@@ -79,7 +104,7 @@ function formatEndDate(dateStr?: string | null) {
                 name="i-lucide-user"
                 class="size-3.5 text-primary"
               />
-              {{ event.author.name || event.author.username }}
+              {{ authorName }}
             </span>
           </div>
         </div>
@@ -89,7 +114,20 @@ function formatEndDate(dateStr?: string | null) {
           <h4 class="text-xs font-semibold text-muted uppercase tracking-wider">
             Deskripsi & Materi
           </h4>
-          <EventRenderer :content="event.description" />
+          <div
+            v-if="isDetailsLoading"
+            class="flex flex-col gap-2 py-6 items-center justify-center text-muted"
+          >
+            <UIcon
+              name="i-lucide-loader"
+              class="size-6 animate-spin text-primary"
+            />
+            <span class="text-xs">Memuat rincian deskripsi...</span>
+          </div>
+          <EventRenderer
+            v-else
+            :content="fullEventDetails?.description"
+          />
         </div>
       </div>
     </template>

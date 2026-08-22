@@ -197,9 +197,14 @@ export class ScheduleService {
     await subjectRepository.delete(id)
   }
 
-  // Events
   async getEvents(): Promise<EventWithSubject[]> {
     return await eventRepository.findAll()
+  }
+
+  async getEventById(id: number): Promise<EventSelect> {
+    const ev = await eventRepository.findById(id)
+    if (!ev) throw new NotFoundException('Event tidak ditemukan')
+    return ev
   }
 
   async createEvent(dto: CreateEventDTO): Promise<EventSelect> {

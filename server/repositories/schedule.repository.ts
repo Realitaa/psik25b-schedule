@@ -79,19 +79,30 @@ export class EventRepository {
 
   async findAll(): Promise<EventWithSubject[]> {
     await this.cleanupExpired()
-    const allEvents = await db.select().from(events).all()
-    const result: EventWithSubject[] = []
+    const allEvents = await db.select({
+      id: events.id,
+      subjectId: events.subjectId,
+      authorId: events.authorId,
+      title: events.title,
+      endDate: events.endDate,
+      createdAt: events.createdAt
+    }).from(events).all()
+    if (allEvents.length === 0) return []
 
+    const allSubjects = await db.select().from(subjects).all()
+    const subjectsMap = new Map(allSubjects.map(s => [s.id, s]))
+
+    const allUsers = await db.select({ id: users.id, name: users.name, username: users.username }).from(users).all()
+    const usersMap = new Map(allUsers.map(u => [u.id, u]))
+
+    const result: EventWithSubject[] = []
     for (const ev of allEvents) {
-      const subject = await db.select().from(subjects).where(eq(subjects.id, ev.subjectId)).get()
-      let author = null
-      if (ev.authorId) {
-        const u = await db.select({ id: users.id, name: users.name, username: users.username }).from(users).where(eq(users.id, ev.authorId)).get()
-        if (u) author = u
-      }
+      const subject = subjectsMap.get(ev.subjectId)
       if (subject) {
+        const author = ev.authorId ? (usersMap.get(ev.authorId) || null) : null
         result.push({
           ...ev,
+          description: null,
           subject,
           author
         })
@@ -117,20 +128,34 @@ export class EventRepository {
 
   async findBySubjectId(subjectId: number): Promise<EventSelect[]> {
     await this.cleanupExpired()
-    const allEvs = await db.select().from(events).where(eq(events.subjectId, subjectId)).all()
-    const result: EventSelect[] = []
-    for (const ev of allEvs) {
-      let author = null
-      if (ev.authorId) {
-        const u = await db.select({ id: users.id, name: users.name, username: users.username }).from(users).where(eq(users.id, ev.authorId)).get()
-        if (u) author = u
-      }
-      result.push({
-        ...ev,
-        author
-      })
+    const allEvs = await db.select({
+      id: events.id,
+      subjectId: events.subjectId,
+      authorId: events.authorId,
+      title: events.title,
+      endDate: events.endDate,
+      createdAt: events.createdAt
+    }).from(events).where(eq(events.subjectId, subjectId)).all()
+    if (allEvs.length === 0) return []
+
+    const authorIds = [...new Set(allEvs.map(ev => ev.authorId).filter((id): id is number => id !== null))]
+    let usersMap = new Map<number, { id: number, name: string | null, username: string }>()
+    if (authorIds.length > 0) {
+      const matchedUsers = await db.select({ id: users.id, name: users.name, username: users.username })
+        .from(users)
+        .where(inArray(users.id, authorIds))
+        .all()
+      usersMap = new Map(matchedUsers.map(u => [u.id, u]))
     }
-    return result
+
+    return allEvs.map(ev => {
+      const author = ev.authorId ? (usersMap.get(ev.authorId) || null) : null
+      return {
+        ...ev,
+        description: null,
+        author
+      }
+    })
   }
 
   async create(data: EventInsert): Promise<EventSelect> {
@@ -157,46 +182,65 @@ export class SubjectRepository {
   async findAll(): Promise<SubjectWithLecturers[]> {
     await this.cleanupExpired()
     const allSubjects = await db.select().from(subjects).all()
-    const result: SubjectWithLecturers[] = []
-    const nowISO = new Date().toISOString()
+    if (allSubjects.length === 0) return []
 
-    for (const sub of allSubjects) {
-      const rels = await db.select({ lecturerId: subjectLecturers.lecturerId })
-        .from(subjectLecturers)
-        .where(eq(subjectLecturers.subjectId, sub.id))
-        .all()
+    const allLecturers = await db.select().from(lecturers).all()
+    const lecturersMap = new Map(allLecturers.map(l => [l.id, l]))
 
-      let lecturerList: LecturerSelect[] = []
-      if (rels.length > 0) {
-        const ids = rels.map(r => r.lecturerId)
-        lecturerList = await db.select().from(lecturers).where(inArray(lecturers.id, ids)).all()
+    const allRels = await db.select().from(subjectLecturers).all()
+    const relsMap = new Map<number, number[]>()
+    for (const r of allRels) {
+      if (!relsMap.has(r.subjectId)) {
+        relsMap.set(r.subjectId, [])
       }
-
-      // Fetch active events for this subject with author
-      const subjectEvents = await db.select().from(events).where(eq(events.subjectId, sub.id)).all()
-      const activeEvents: EventSelect[] = []
-      for (const ev of subjectEvents) {
-        if (!ev.endDate || ev.endDate >= nowISO) {
-          let author = null
-          if (ev.authorId) {
-            const u = await db.select({ id: users.id, name: users.name, username: users.username }).from(users).where(eq(users.id, ev.authorId)).get()
-            if (u) author = u
-          }
-          activeEvents.push({
-            ...ev,
-            author
-          })
-        }
-      }
-
-      result.push({
-        ...sub,
-        lecturers: lecturerList,
-        events: activeEvents
-      })
+      relsMap.get(r.subjectId)!.push(r.lecturerId)
     }
 
-    return result
+    const allEvents = await db.select({
+      id: events.id,
+      subjectId: events.subjectId,
+      authorId: events.authorId,
+      title: events.title,
+      endDate: events.endDate,
+      createdAt: events.createdAt
+    }).from(events).all()
+    const nowISO = new Date().toISOString()
+    const activeEvents = allEvents.filter(ev => !ev.endDate || ev.endDate >= nowISO)
+
+    const allUsers = await db.select({ id: users.id, name: users.name, username: users.username }).from(users).all()
+    const usersMap = new Map(allUsers.map(u => [u.id, u]))
+
+    const eventsWithAuthors = activeEvents.map(ev => {
+      const author = ev.authorId ? (usersMap.get(ev.authorId) || null) : null
+      return {
+        ...ev,
+        description: null,
+        author
+      }
+    })
+
+    const eventsBySubjectMap = new Map<number, typeof eventsWithAuthors>()
+    for (const ev of eventsWithAuthors) {
+      if (!eventsBySubjectMap.has(ev.subjectId)) {
+        eventsBySubjectMap.set(ev.subjectId, [])
+      }
+      eventsBySubjectMap.get(ev.subjectId)!.push(ev)
+    }
+
+    return allSubjects.map(sub => {
+      const lecturerIds = relsMap.get(sub.id) || []
+      const lecturerList = lecturerIds
+        .map(id => lecturersMap.get(id))
+        .filter((l): l is LecturerSelect => !!l)
+
+      const subjectEventsList = eventsBySubjectMap.get(sub.id) || []
+
+      return {
+        ...sub,
+        lecturers: lecturerList,
+        events: subjectEventsList
+      }
+    })
   }
 
   async findById(id: number): Promise<SubjectWithLecturers | undefined> {
@@ -216,17 +260,32 @@ export class SubjectRepository {
     }
 
     const nowISO = new Date().toISOString()
-    const subjectEvents = await db.select().from(events).where(eq(events.subjectId, sub.id)).all()
+    const subjectEvents = await db.select({
+      id: events.id,
+      subjectId: events.subjectId,
+      authorId: events.authorId,
+      title: events.title,
+      endDate: events.endDate,
+      createdAt: events.createdAt
+    }).from(events).where(eq(events.subjectId, sub.id)).all()
+    
+    const authorIds = [...new Set(subjectEvents.map(ev => ev.authorId).filter((id): id is number => id !== null))]
+    let usersMap = new Map<number, { id: number, name: string | null, username: string }>()
+    if (authorIds.length > 0) {
+      const matchedUsers = await db.select({ id: users.id, name: users.name, username: users.username })
+        .from(users)
+        .where(inArray(users.id, authorIds))
+        .all()
+      usersMap = new Map(matchedUsers.map(u => [u.id, u]))
+    }
+
     const activeEvents: EventSelect[] = []
     for (const ev of subjectEvents) {
       if (!ev.endDate || ev.endDate >= nowISO) {
-        let author = null
-        if (ev.authorId) {
-          const u = await db.select({ id: users.id, name: users.name, username: users.username }).from(users).where(eq(users.id, ev.authorId)).get()
-          if (u) author = u
-        }
+        const author = ev.authorId ? (usersMap.get(ev.authorId) || null) : null
         activeEvents.push({
           ...ev,
+          description: null,
           author
         })
       }
