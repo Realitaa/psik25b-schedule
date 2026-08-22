@@ -1,7 +1,9 @@
 allowBuilds:
-  '@parcel/watcher': false
-  '@tailwindcss/oxide': false
-  bcrypt: set this to true or false
-  esbuild: false
-  unrs-resolver: false
-  vue-demi: false
+  '@parcel/watcher': true
+  '@tailwindcss/oxide': true
+  bcrypt: true
+  bcryptjs: true
+  esbuild: true
+  unrs-resolver: true
+  vue-demi: true
+  workerd: true

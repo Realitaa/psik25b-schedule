@@ -7,7 +7,10 @@ declare global {
 }
 
 export default defineNitroPlugin((nitroApp) => {
-  nitroApp.hooks.hook('request', async () => {
+  nitroApp.hooks.hook('request', async (event) => {
+    // Skip database seeding if D1 binding is not present (e.g. during prerendering)
+    if (!event.context.cloudflare?.env?.DB) return
+
     // Only run initialization once
     if (globalThis.__db_initialized) return
     globalThis.__db_initialized = true
