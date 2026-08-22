@@ -39,6 +39,7 @@ const editingLecturerId = ref<number | null>(null)
 const editingSubjectId = ref<number | null>(null)
 const editingEventId = ref<number | null>(null)
 const submittingForm = ref(false)
+const isEditingEventLoading = ref(false)
 
 // Form States
 const yearForm = reactive({
@@ -442,13 +443,25 @@ function openAddEventModal() {
   showEventModal.value = true
 }
 
-function openEditEventModal(ev: EventWithSubject) {
+async function openEditEventModal(ev: EventWithSubject) {
   editingEventId.value = ev.id
   eventForm.subjectId = ev.subjectId
   eventForm.title = ev.title
-  eventForm.description = ev.description ? renderTiptapToHtml(ev.description) : ''
+  eventForm.description = ''
   setCalendarFromIsoString(ev.endDate)
+  isEditingEventLoading.value = true
   showEventModal.value = true
+  
+  try {
+    const full = await $fetch<EventSelect>(`/api/events/${ev.id}`)
+    if (full) {
+      eventForm.description = full.description ? renderTiptapToHtml(full.description) : ''
+    }
+  } catch (err) {
+    console.error('Gagal memuat deskripsi event:', err)
+  } finally {
+    isEditingEventLoading.value = false
+  }
 }
 
 function openPreviewEventModal(ev: EventWithSubject) {
@@ -1241,10 +1254,22 @@ const eventColumns = [
           label="Deskripsi & Rincian Event"
           description="Gunakan editor untuk menyusun rincian materi, instruksi, dan gambar"
         >
-          <EventEditor
-            v-model="eventForm.description"
-            placeholder="Tuliskan rincian event di sini..."
-          />
+          <div class="relative w-full">
+            <EventEditor
+              v-model="eventForm.description"
+              placeholder="Tuliskan rincian event di sini..."
+            />
+            <div
+              v-if="isEditingEventLoading"
+              class="absolute inset-0 bg-neutral-50/75 dark:bg-neutral-900/75 flex flex-col gap-2 items-center justify-center rounded-xl backdrop-blur-xs z-10"
+            >
+              <UIcon
+                name="i-lucide-loader"
+                class="size-6 animate-spin text-primary"
+              />
+              <span class="text-xs text-muted font-medium">Memuat deskripsi event...</span>
+            </div>
+          </div>
         </UFormField>
       </div>
     </FormModal>
