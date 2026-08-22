@@ -1,9 +1,7 @@
 allowBuilds:
-  '@parcel/watcher': true
-  '@tailwindcss/oxide': true
-  bcrypt: true
-  bcryptjs: true
   esbuild: true
   unrs-resolver: true
   vue-demi: true
   workerd: true
+minimumReleaseAgeExclude:
+  - viewerjs@1.12.0
