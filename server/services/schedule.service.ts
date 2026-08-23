@@ -208,6 +208,7 @@ export class ScheduleService {
 
     return await eventRepository.create({
       subjectId: dto.subjectId,
+      authorId: dto.authorId || null,
       title: dto.title,
       description: dto.description || null,
       endDate: dto.endDate || null

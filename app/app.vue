@@ -40,7 +40,7 @@ async function handleLogout() {
 <template>
   <UApp>
     <NuxtLoadingIndicator color="teal" />
-    <UHeader>
+    <UHeader :toggle="false">
       <template #left>
         <NuxtLink
           to="/"

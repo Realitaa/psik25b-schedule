@@ -114,23 +114,30 @@ function openEventModal(event: EventSelect) {
               Daring (Online)
             </UBadge>
             <template v-else>
-              <span
-                v-if="subject.room"
-                class="flex items-center gap-1 font-medium text-highlighted"
+              <UIcon
+                name="i-lucide-map-pin"
+                class="size-6 text-primary shrink-0"
+              />
+              <UBadge
+                v-if="subject.building"
+                class="tabular-nums"
               >
-                <UIcon
-                  name="i-lucide-map-pin"
-                  class="size-4 text-primary"
-                />
-                <span
-                  v-if="subject.building"
-                  class="text-muted"
-                >
-                  {{ subject.building }}.{{ subject.floor }}.{{ subject.room }}
-                </span>
-              </span>
+                {{ subject.building }}
+              </UBadge>
+              <UBadge
+                v-if="subject.floor"
+                class="tabular-nums"
+              >
+                {{ subject.floor }}
+              </UBadge>
+              <UBadge
+                v-if="subject.room"
+                class="tabular-nums"
+              >
+                {{ subject.room }}
+              </UBadge>
               <span
-                v-else-if="!subject.room"
+                v-if="!subject.building && !subject.floor && !subject.room"
                 class="text-muted"
               >-</span>
             </template>
