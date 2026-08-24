@@ -451,7 +451,7 @@ async function openEditEventModal(ev: EventWithSubject) {
   setCalendarFromIsoString(ev.endDate)
   isEditingEventLoading.value = true
   showEventModal.value = true
-  
+
   try {
     const full = await $fetch<EventSelect>(`/api/events/${ev.id}`)
     if (full) {
@@ -645,7 +645,7 @@ const eventColumns = [
           <div>
             <h2 class="text-xl font-semibold text-highlighted flex items-center gap-2">
               <UIcon
-                name="i-lucide-calendar-event"
+                name="i-lucide-ticket"
                 class="text-amber-500 size-5"
               />
               Tabel Manajemen Event / Pengumuman Matkul
