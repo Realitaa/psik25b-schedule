@@ -1,12 +1,15 @@
-import { eq, inArray } from 'drizzle-orm'
-import { academicYears, lecturers, subjects, subjectLecturers } from '../db/schema'
+import { eq, inArray, lt, and, isNotNull } from 'drizzle-orm'
+import { academicYears, lecturers, subjects, subjectLecturers, events } from '../db/schema'
 import type {
   AcademicYearSelect,
   AcademicYearInsert,
   LecturerSelect,
   LecturerInsert,
   SubjectInsert,
-  SubjectWithLecturers
+  SubjectWithLecturers,
+  EventSelect,
+  EventInsert,
+  EventWithSubject
 } from '../types'
 
 export class AcademicYearRepository {
@@ -67,10 +70,64 @@ export class LecturerRepository {
   }
 }
 
+export class EventRepository {
+  async cleanupExpired(): Promise<void> {
+    const nowISO = new Date().toISOString()
+    // Delete events where endDate is not null and endDate < nowISO
+    await db.delete(events).where(and(isNotNull(events.endDate), lt(events.endDate, nowISO))).run()
+  }
+
+  async findAll(): Promise<EventWithSubject[]> {
+    await this.cleanupExpired()
+    const allEvents = await db.select().from(events).all()
+    const result: EventWithSubject[] = []
+
+    for (const ev of allEvents) {
+      const subject = await db.select().from(subjects).where(eq(subjects.id, ev.subjectId)).get()
+      if (subject) {
+        result.push({
+          ...ev,
+          subject
+        })
+      }
+    }
+
+    return result
+  }
+
+  async findById(id: number): Promise<EventSelect | undefined> {
+    return await db.select().from(events).where(eq(events.id, id)).get()
+  }
+
+  async findBySubjectId(subjectId: number): Promise<EventSelect[]> {
+    await this.cleanupExpired()
+    return await db.select().from(events).where(eq(events.subjectId, subjectId)).all()
+  }
+
+  async create(data: EventInsert): Promise<EventSelect> {
+    return await db.insert(events).values(data).returning().get()
+  }
+
+  async update(id: number, data: Partial<EventInsert>): Promise<EventSelect | undefined> {
+    return await db.update(events).set(data).where(eq(events.id, id)).returning().get()
+  }
+
+  async delete(id: number): Promise<void> {
+    await db.delete(events).where(eq(events.id, id)).run()
+  }
+}
+
 export class SubjectRepository {
+  async cleanupExpired(): Promise<void> {
+    const nowISO = new Date().toISOString()
+    await db.delete(subjects).where(and(eq(subjects.isReplacement, true), isNotNull(subjects.endDate), lt(subjects.endDate, nowISO))).run()
+  }
+
   async findAll(): Promise<SubjectWithLecturers[]> {
+    await this.cleanupExpired()
     const allSubjects = await db.select().from(subjects).all()
     const result: SubjectWithLecturers[] = []
+    const nowISO = new Date().toISOString()
 
     for (const sub of allSubjects) {
       const rels = await db.select({ lecturerId: subjectLecturers.lecturerId })
@@ -84,9 +141,14 @@ export class SubjectRepository {
         lecturerList = await db.select().from(lecturers).where(inArray(lecturers.id, ids)).all()
       }
 
+      // Fetch active events for this subject
+      const subjectEvents = await db.select().from(events).where(eq(events.subjectId, sub.id)).all()
+      const activeEvents = subjectEvents.filter(ev => !ev.endDate || ev.endDate >= nowISO)
+
       result.push({
         ...sub,
-        lecturers: lecturerList
+        lecturers: lecturerList,
+        events: activeEvents
       })
     }
 
@@ -94,6 +156,7 @@ export class SubjectRepository {
   }
 
   async findById(id: number): Promise<SubjectWithLecturers | undefined> {
+    await this.cleanupExpired()
     const sub = await db.select().from(subjects).where(eq(subjects.id, id)).get()
     if (!sub) return undefined
 
@@ -108,9 +171,14 @@ export class SubjectRepository {
       lecturerList = await db.select().from(lecturers).where(inArray(lecturers.id, ids)).all()
     }
 
+    const nowISO = new Date().toISOString()
+    const subjectEvents = await db.select().from(events).where(eq(events.subjectId, sub.id)).all()
+    const activeEvents = subjectEvents.filter(ev => !ev.endDate || ev.endDate >= nowISO)
+
     return {
       ...sub,
-      lecturers: lecturerList
+      lecturers: lecturerList,
+      events: activeEvents
     }
   }
 
@@ -153,3 +221,4 @@ export class SubjectRepository {
 export const academicYearRepository = new AcademicYearRepository()
 export const lecturerRepository = new LecturerRepository()
 export const subjectRepository = new SubjectRepository()
+export const eventRepository = new EventRepository()

@@ -31,12 +31,15 @@ export const subjects = sqliteTable('subjects', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   academicYearId: integer('academic_year_id').references(() => academicYears.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
+  isOnline: integer('is_online', { mode: 'boolean' }).notNull().default(false),
+  isReplacement: integer('is_replacement', { mode: 'boolean' }).notNull().default(false),
   building: text('building'),
   floor: text('floor'),
   room: text('room'),
   timeStart: text('time_start'),
   timeEnd: text('time_end'),
   day: text('day'),
+  endDate: text('end_date'), // ISO timestamp for auto-expiry (e.g. replacement subjects)
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
 })
 
@@ -46,3 +49,12 @@ export const subjectLecturers = sqliteTable('subject_lecturers', {
 }, table => [
   primaryKey({ columns: [table.subjectId, table.lecturerId] })
 ])
+
+export const events = sqliteTable('events', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  subjectId: integer('subject_id').notNull().references(() => subjects.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  description: text('description'), // TipTap JSON string
+  endDate: text('end_date'), // ISO timestamp string or null
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
+})

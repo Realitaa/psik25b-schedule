@@ -40,17 +40,34 @@ export interface SubjectSelect {
   id: number
   academicYearId: number | null
   name: string
+  isOnline: boolean
+  isReplacement: boolean
   building: string | null
   floor: string | null
   room: string | null
   timeStart: string | null
   timeEnd: string | null
   day: string | null
+  endDate: string | null
   createdAt: string | null
+}
+
+export interface EventSelect {
+  id: number
+  subjectId: number
+  title: string
+  description: string | null
+  endDate: string | null
+  createdAt: string | null
+}
+
+export interface EventWithSubject extends EventSelect {
+  subject: SubjectSelect
 }
 
 export interface SubjectWithLecturers extends SubjectSelect {
   lecturers: LecturerSelect[]
+  events?: EventSelect[]
 }
 
 export interface UserSessionPayload {

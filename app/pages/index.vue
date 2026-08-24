@@ -20,12 +20,24 @@ const { dayStatus } = useDayStatus()
 const { todayDayName, currentMinutes, todayFormatted, timeToMinutes } = useDateTime()
 const { formatWhatsAppLink } = useWhatsApp()
 
+// Event Detail Modal State
+const selectedEvent = ref<{ event: any, subject: SubjectWithLecturers } | null>(null)
+const isEventModalOpen = ref(false)
+
+function openEventModal(event: any, subject: SubjectWithLecturers) {
+  selectedEvent.value = { event, subject }
+  isEventModalOpen.value = true
+}
+
 // Filter and classify today's subjects
 const todaySubjects = computed(() => {
-  if (!data.value?.subjects) return []
+  const activeYearId = data.value?.academicYearsData?.activeYearId
+  if (!activeYearId || !data.value?.subjects) return []
 
-  // Filter by today's day name
-  const filtered = data.value.subjects.filter(s => s.day === todayDayName.value)
+  // Filter by active academic year and today's day name
+  const filtered = data.value.subjects.filter(
+    s => s.academicYearId === activeYearId && s.day === todayDayName.value
+  )
 
   // Map activity status (current/incoming/passed)
   const processed = filtered.map((s) => {
@@ -238,8 +250,40 @@ const lecturerColumns = [
           :columns="subjectColumns"
         >
           <template #name-cell="{ row }">
-            <div class="min-w-35 max-w-60 whitespace-normal wrap-break-word text-sm font-semibold text-highlighted">
-              {{ row.original.name || '-' }}
+            <div class="min-w-35 max-w-60 whitespace-normal wrap-break-word text-sm space-y-1.5">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-semibold text-highlighted">{{ row.original.name || '-' }}</span>
+                <UBadge
+                  v-if="row.original.isReplacement"
+                  color="warning"
+                  variant="subtle"
+                  size="xs"
+                >
+                  Matkul Ganti
+                </UBadge>
+              </div>
+              <!-- Active events attached to this subject -->
+              <div
+                v-if="row.original.events && row.original.events.length > 0"
+                class="flex flex-col gap-1"
+              >
+                <div
+                  v-for="ev in row.original.events"
+                  :key="ev.id"
+                  class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 rounded text-xs font-medium cursor-pointer transition-colors max-w-fit"
+                  @click="openEventModal(ev, row.original)"
+                >
+                  <UIcon
+                    name="i-lucide-bell"
+                    class="size-3 text-amber-500 shrink-0"
+                  />
+                  <span class="truncate max-w-40 font-semibold">{{ ev.title }}</span>
+                  <UIcon
+                    name="i-lucide-arrow-right"
+                    class="size-3 text-amber-500 shrink-0"
+                  />
+                </div>
+              </div>
             </div>
           </template>
 
@@ -256,29 +300,44 @@ const lecturerColumns = [
           </template>
 
           <template #location-cell="{ row }">
-            <div class="min-w-25 whitespace-normal flex gap-1">
+            <div class="min-w-25 whitespace-normal flex gap-1 items-center flex-wrap">
               <UBadge
-                v-if="row.original.building"
-                class="whitespace-normal wrap-break-word tabular-nums text-md"
+                v-if="row.original.isOnline"
+                color="info"
+                variant="subtle"
+                size="lg"
+                class="font-medium"
               >
-                {{ row.original.building }}
+                <UIcon
+                  name="i-lucide-video"
+                  class="size-3.5 mr-1"
+                />
+                Daring
               </UBadge>
-              <UBadge
-                v-if="row.original.floor"
-                class="whitespace-normal wrap-break-word tabular-nums text-md"
-              >
-                {{ row.original.floor }}
-              </UBadge>
-              <UBadge
-                v-if="row.original.room"
-                class="whitespace-normal wrap-break-word tabular-nums text-md"
-              >
-                {{ row.original.room }}
-              </UBadge>
-              <span
-                v-if="!row.original.building && !row.original.floor && !row.original.room"
-                class="text-muted"
-              >-</span>
+              <template v-else>
+                <UBadge
+                  v-if="row.original.building"
+                  class="whitespace-normal wrap-break-word tabular-nums text-md"
+                >
+                  {{ row.original.building }}
+                </UBadge>
+                <UBadge
+                  v-if="row.original.floor"
+                  class="whitespace-normal wrap-break-word tabular-nums text-md"
+                >
+                  {{ row.original.floor }}
+                </UBadge>
+                <UBadge
+                  v-if="row.original.room"
+                  class="whitespace-normal wrap-break-word tabular-nums text-md"
+                >
+                  {{ row.original.room }}
+                </UBadge>
+                <span
+                  v-if="!row.original.building && !row.original.floor && !row.original.room"
+                  class="text-muted"
+                >-</span>
+              </template>
             </div>
           </template>
 
@@ -387,5 +446,11 @@ const lecturerColumns = [
         </div>
       </UCard>
     </div>
+
+    <!-- Event Detail Modal -->
+    <EventDetailModal
+      v-model:open="isEventModalOpen"
+      :event="selectedEvent ? { ...selectedEvent.event, subject: selectedEvent.subject } : null"
+    />
   </div>
 </template>

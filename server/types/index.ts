@@ -1,10 +1,12 @@
-import type { users, academicYears, lecturers, subjects, subjectLecturers } from '../db/schema'
+import type { users, academicYears, lecturers, subjects, subjectLecturers, events } from '../db/schema'
 import type {
   HolidayItem as SharedHolidayItem,
   HolidayAPIResponse as SharedHolidayAPIResponse,
   AcademicYearSelect as SharedAcademicYearSelect,
   LecturerSelect as SharedLecturerSelect,
   SubjectSelect as SharedSubjectSelect,
+  EventSelect as SharedEventSelect,
+  EventWithSubject as SharedEventWithSubject,
   SubjectWithLecturers as SharedSubjectWithLecturers,
   UserSessionPayload as SharedUserSessionPayload
 } from '#shared/types'
@@ -15,6 +17,8 @@ export type HolidayAPIResponse = SharedHolidayAPIResponse
 export type AcademicYearSelect = SharedAcademicYearSelect
 export type LecturerSelect = SharedLecturerSelect
 export type SubjectSelect = SharedSubjectSelect
+export type EventSelect = SharedEventSelect
+export type EventWithSubject = SharedEventWithSubject
 export type SubjectWithLecturers = SharedSubjectWithLecturers
 export type UserSessionPayload = SharedUserSessionPayload
 
@@ -31,6 +35,9 @@ export type LecturerInsert = typeof lecturers.$inferInsert
 // Subject Entity Types
 export type SubjectInsert = typeof subjects.$inferInsert
 export type SubjectLecturerSelect = typeof subjectLecturers.$inferSelect
+
+// Event Entity Types
+export type EventInsert = typeof events.$inferInsert
 
 // DTOs
 export interface LoginDTO {
@@ -55,13 +62,23 @@ export interface CreateLecturerDTO {
 export interface CreateSubjectDTO {
   academicYearId?: number | null
   name: string
+  isOnline?: boolean
+  isReplacement?: boolean
   building?: string | null
   floor?: string | null
   room?: string | null
   timeStart?: string | null
   timeEnd?: string | null
   day?: string | null
+  endDate?: string | null
   lecturerShortnames?: string[]
+}
+
+export interface CreateEventDTO {
+  subjectId: number
+  title: string
+  description?: string | null
+  endDate?: string | null
 }
 
 declare module '#auth-utils' {

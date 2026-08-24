@@ -3,7 +3,8 @@ import { useDayStatus } from '~/composables/useDayStatus'
 import type {
   AcademicYearSelect,
   LecturerSelect,
-  SubjectWithLecturers
+  SubjectWithLecturers,
+  EventWithSubject
 } from '#shared/types'
 
 definePageMeta({
@@ -18,6 +19,7 @@ const { dayStatus, loading: dayStatusLoading, checkDayStatus } = useDayStatus()
 const academicYearsData = ref<{ years: AcademicYearSelect[], activeYearId: number | null }>({ years: [], activeYearId: null })
 const lecturers = ref<LecturerSelect[]>([])
 const subjects = ref<SubjectWithLecturers[]>([])
+const events = ref<EventWithSubject[]>([])
 const loadingData = ref(false)
 
 // Active Academic Year Selector State
@@ -28,8 +30,13 @@ const savingActiveYear = ref(false)
 const showYearModal = ref(false)
 const showLecturerModal = ref(false)
 const showSubjectModal = ref(false)
+const showEventModal = ref(false)
+const showPreviewEventModal = ref(false)
+const previewingEvent = ref<EventWithSubject | null>(null)
+
 const editingLecturerId = ref<number | null>(null)
 const editingSubjectId = ref<number | null>(null)
+const editingEventId = ref<number | null>(null)
 const submittingForm = ref(false)
 
 // Form States
@@ -49,6 +56,8 @@ const lecturerForm = reactive({
 
 const subjectForm = reactive({
   name: '',
+  isOnline: false,
+  isReplacement: false,
   building: '',
   floor: '',
   room: '',
@@ -58,21 +67,33 @@ const subjectForm = reactive({
   lecturerShortnames: [] as string[]
 })
 
-const daysList = DAYS_LIST
+const eventForm = reactive({
+  subjectId: undefined as number | undefined,
+  title: '',
+  description: null as any,
+  endDate: ''
+})
+
+const imageInputRef = ref<HTMLInputElement | null>(null)
+const activeEditorInstance = ref<any>(null)
+
+const daysList = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
 
 // Fetch All Data
 async function fetchData() {
   loadingData.value = true
   try {
-    const [yearsRes, lecturersRes, subjectsRes] = await Promise.all([
+    const [yearsRes, lecturersRes, subjectsRes, eventsRes] = await Promise.all([
       $fetch<{ years: AcademicYearSelect[], activeYearId: number | null }>('/api/academic-years'),
       $fetch<LecturerSelect[]>('/api/lecturers'),
-      $fetch<SubjectWithLecturers[]>('/api/subjects')
+      $fetch<SubjectWithLecturers[]>('/api/subjects'),
+      $fetch<EventWithSubject[]>('/api/events')
     ])
     academicYearsData.value = yearsRes
     selectedActiveYear.value = yearsRes.activeYearId !== null ? String(yearsRes.activeYearId) : 'none'
     lecturers.value = lecturersRes
     subjects.value = subjectsRes
+    events.value = eventsRes
   } catch (err: unknown) {
     const e = err as { data?: { statusMessage?: string } }
     toast.add({ title: 'Gagal Memuat Data', description: e.data?.statusMessage || 'Terjadi kesalahan', color: 'error' })
@@ -97,6 +118,14 @@ const yearOptions = computed(() => {
     })
   }
   return opts
+})
+
+// Subject Options for Event Modal
+const subjectOptions = computed(() => {
+  return subjects.value.map(s => ({
+    label: `${s.name} (${s.day || '-'} ${s.timeStart || ''})`,
+    value: s.id
+  }))
 })
 
 // Shortnames List for UInputMenu
@@ -198,12 +227,12 @@ async function submitLecturerForm() {
 
 // Confirmation Modal State
 const showDeleteConfirmModal = ref(false)
-const deleteType = ref<'lecturer' | 'subject' | null>(null)
+const deleteType = ref<'lecturer' | 'subject' | 'event' | null>(null)
 const targetDeleteId = ref<number | null>(null)
 const targetDeleteName = ref('')
 const deletingItem = ref(false)
 
-function openDeleteConfirm(type: 'lecturer' | 'subject', id: number, name: string) {
+function openDeleteConfirm(type: 'lecturer' | 'subject' | 'event', id: number, name: string) {
   deleteType.value = type
   targetDeleteId.value = id
   targetDeleteName.value = name
@@ -217,16 +246,19 @@ async function confirmDelete() {
     if (deleteType.value === 'lecturer') {
       await $fetch(`/api/lecturers/${targetDeleteId.value}`, { method: 'DELETE' })
       toast.add({ title: 'Dosen Berhasil Dihapus', color: 'success' })
-    } else {
+    } else if (deleteType.value === 'subject') {
       await $fetch(`/api/subjects/${targetDeleteId.value}`, { method: 'DELETE' })
       toast.add({ title: 'Mata Kuliah Berhasil Dihapus', color: 'success' })
+    } else if (deleteType.value === 'event') {
+      await $fetch(`/api/events/${targetDeleteId.value}`, { method: 'DELETE' })
+      toast.add({ title: 'Event Berhasil Dihapus', color: 'success' })
     }
     showDeleteConfirmModal.value = false
     await fetchData()
   } catch (err: unknown) {
     const e = err as { data?: { statusMessage?: string } }
     toast.add({
-      title: `Gagal Menghapus ${deleteType.value === 'lecturer' ? 'Dosen' : 'Mata Kuliah'}`,
+      title: `Gagal Menghapus ${deleteType.value === 'lecturer' ? 'Dosen' : deleteType.value === 'subject' ? 'Mata Kuliah' : 'Event'}`,
       description: e.data?.statusMessage,
       color: 'error'
     })
@@ -241,6 +273,8 @@ async function confirmDelete() {
 function openAddSubjectModal() {
   editingSubjectId.value = null
   subjectForm.name = ''
+  subjectForm.isOnline = false
+  subjectForm.isReplacement = false
   subjectForm.building = ''
   subjectForm.floor = ''
   subjectForm.room = ''
@@ -254,6 +288,8 @@ function openAddSubjectModal() {
 function openEditSubjectModal(s: SubjectWithLecturers) {
   editingSubjectId.value = s.id
   subjectForm.name = s.name
+  subjectForm.isOnline = Boolean(s.isOnline)
+  subjectForm.isReplacement = Boolean(s.isReplacement)
   subjectForm.building = s.building || ''
   subjectForm.floor = s.floor || ''
   subjectForm.room = s.room || ''
@@ -275,9 +311,11 @@ async function submitSubjectForm() {
     const payload = {
       academicYearId: activeYearId,
       name: subjectForm.name,
-      building: subjectForm.building || null,
-      floor: subjectForm.floor || null,
-      room: subjectForm.room || null,
+      isOnline: subjectForm.isOnline,
+      isReplacement: subjectForm.isReplacement,
+      building: subjectForm.isOnline ? null : (subjectForm.building || null),
+      floor: subjectForm.isOnline ? null : (subjectForm.floor || null),
+      room: subjectForm.isOnline ? null : (subjectForm.room || null),
       timeStart: subjectForm.timeStart || null,
       timeEnd: subjectForm.timeEnd || null,
       day: subjectForm.day || null,
@@ -301,6 +339,160 @@ async function submitSubjectForm() {
   }
 }
 
+// Handlers for Event Modal & Tiptap Editor
+function calculateNextSubjectEndTime(subjectId: number | null) {
+  if (!subjectId) return ''
+  const sub = subjects.value.find(s => s.id === subjectId)
+  if (!sub || !sub.day || !sub.timeEnd) return ''
+
+  const dayIndexMap: Record<string, number> = {
+    Minggu: 0,
+    Senin: 1,
+    Selasa: 2,
+    Rabu: 3,
+    Kamis: 4,
+    Jumat: 5,
+    Sabtu: 6
+  }
+
+  const targetDay = dayIndexMap[sub.day]
+  if (targetDay === undefined) return ''
+
+  const now = new Date()
+  const currentDay = now.getDay()
+  let daysUntil = (targetDay - currentDay + 7) % 7
+
+  const [hours, minutes] = sub.timeEnd.split(':').map(Number)
+  const targetDate = new Date(now)
+  targetDate.setDate(now.getDate() + daysUntil)
+  targetDate.setHours(hours || 0, minutes || 0, 0, 0)
+
+  // If today and time already passed, set for next week
+  if (daysUntil === 0 && targetDate.getTime() <= now.getTime()) {
+    targetDate.setDate(targetDate.getDate() + 7)
+  }
+
+  const year = targetDate.getFullYear()
+  const month = String(targetDate.getMonth() + 1).padStart(2, '0')
+  const date = String(targetDate.getDate()).padStart(2, '0')
+  const h = String(targetDate.getHours()).padStart(2, '0')
+  const m = String(targetDate.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${date}T${h}:${m}`
+}
+
+function openAddEventModal() {
+  editingEventId.value = null
+  eventForm.subjectId = subjects.value[0]?.id || undefined
+  eventForm.title = ''
+  eventForm.description = null
+  eventForm.endDate = calculateNextSubjectEndTime(eventForm.subjectId || null)
+  showEventModal.value = true
+}
+
+function openEditEventModal(ev: EventWithSubject) {
+  editingEventId.value = ev.id
+  eventForm.subjectId = ev.subjectId
+  eventForm.title = ev.title
+  try {
+    eventForm.description = typeof ev.description === 'string' ? JSON.parse(ev.description) : ev.description
+  } catch {
+    eventForm.description = ev.description
+  }
+
+  if (ev.endDate) {
+    const d = new Date(ev.endDate)
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const date = String(d.getDate()).padStart(2, '0')
+    const h = String(d.getHours()).padStart(2, '0')
+    const m = String(d.getMinutes()).padStart(2, '0')
+    eventForm.endDate = `${year}-${month}-${date}T${h}:${m}`
+  } else {
+    eventForm.endDate = ''
+  }
+
+  showEventModal.value = true
+}
+
+function openPreviewEventModal(ev: EventWithSubject) {
+  previewingEvent.value = ev
+  showPreviewEventModal.value = true
+}
+
+function triggerImageUpload(editor: any) {
+  activeEditorInstance.value = editor
+  imageInputRef.value?.click()
+}
+
+function onImageFileSelected(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = (event) => {
+    const base64 = event.target?.result as string
+    if (base64 && activeEditorInstance.value) {
+      activeEditorInstance.value.chain().focus().setImage({ src: base64 }).run()
+      toast.add({ title: 'Gambar Berhasil Disisipkan', color: 'success' })
+    }
+  }
+  reader.readAsDataURL(file)
+  // Reset input so same file can be selected again if needed
+  if (imageInputRef.value) imageInputRef.value.value = ''
+}
+
+async function submitEventForm() {
+  if (!eventForm.subjectId) {
+    toast.add({ title: 'Pilih Mata Kuliah', description: 'Mata kuliah wajib dipilih', color: 'error' })
+    return
+  }
+  if (!eventForm.title) {
+    toast.add({ title: 'Judul Wajib Diisi', color: 'error' })
+    return
+  }
+
+  submittingForm.value = true
+  try {
+    const payload = {
+      subjectId: eventForm.subjectId,
+      title: eventForm.title,
+      description: eventForm.description ? JSON.stringify(eventForm.description) : null,
+      endDate: eventForm.endDate ? new Date(eventForm.endDate).toISOString() : null
+    }
+
+    if (editingEventId.value === null) {
+      await $fetch('/api/events', { method: 'POST', body: payload })
+      toast.add({ title: 'Event Berhasil Ditambahkan', color: 'success' })
+    } else {
+      await $fetch(`/api/events/${editingEventId.value}`, { method: 'PUT', body: payload })
+      toast.add({ title: 'Event Berhasil Diperbarui', color: 'success' })
+    }
+
+    showEventModal.value = false
+    await fetchData()
+  } catch (err: unknown) {
+    const e = err as { data?: { statusMessage?: string } }
+    toast.add({ title: 'Gagal Menyimpan Event', description: e.data?.statusMessage, color: 'error' })
+  } finally {
+    submittingForm.value = false
+  }
+}
+
+function formatEventEndDate(dateStr?: string | null) {
+  if (!dateStr) return 'Tanpa batas waktu'
+  try {
+    const d = new Date(dateStr)
+    return d.toLocaleString('id-ID', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch {
+    return dateStr
+  }
+}
+
 // Columns for Lecturers Table
 const lecturerColumns = [
   { accessorKey: 'shortname', header: 'Singkatan' },
@@ -316,6 +508,14 @@ const subjectColumns = [
   { accessorKey: 'dayTime', header: 'Jadwal' },
   { accessorKey: 'location', header: 'Lokasi' },
   { accessorKey: 'lecturers', header: 'Dosen Pengampu' },
+  { id: 'actions', header: 'Aksi' }
+]
+
+// Columns for Events Table
+const eventColumns = [
+  { accessorKey: 'subject', header: 'Mata Kuliah' },
+  { accessorKey: 'title', header: 'Judul Event' },
+  { accessorKey: 'endDate', header: 'Batas Waktu (Auto-Expiry)' },
   { id: 'actions', header: 'Aksi' }
 ]
 </script>
@@ -409,6 +609,93 @@ const subjectColumns = [
       </div>
     </UCard>
 
+    <!-- SECTION: CRUD Event Mata Kuliah -->
+    <UCard>
+      <template #header>
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-semibold text-highlighted flex items-center gap-2">
+              <UIcon
+                name="i-lucide-calendar-event"
+                class="text-amber-500 size-5"
+              />
+              Tabel Manajemen Event / Pengumuman Matkul
+            </h2>
+            <p class="text-sm text-muted">
+              Kelola tugas, kuis, atau pengumuman khusus yang melekat pada mata kuliah (otomatis kedaluwarsa)
+            </p>
+          </div>
+          <UButton
+            label="Tambah Event"
+            icon="i-lucide-plus"
+            color="primary"
+            @click="openAddEventModal"
+          />
+        </div>
+      </template>
+
+      <UTable
+        :data="events"
+        :columns="eventColumns"
+      >
+        <template #subject-cell="{ row }">
+          <div class="text-sm font-semibold text-highlighted">
+            {{ row.original.subject?.name || '-' }}
+          </div>
+        </template>
+
+        <template #title-cell="{ row }">
+          <div class="flex items-center gap-2">
+            <span class="font-medium text-highlighted">{{ row.original.title }}</span>
+            <UButton
+              icon="i-lucide-eye"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              label="Lihat"
+              @click="openPreviewEventModal(row.original)"
+            />
+          </div>
+        </template>
+
+        <template #endDate-cell="{ row }">
+          <div class="text-xs">
+            <UBadge
+              v-if="row.original.endDate"
+              color="warning"
+              variant="subtle"
+              size="sm"
+            >
+              <UIcon name="i-lucide-clock" class="size-3 mr-1" />
+              {{ formatEventEndDate(row.original.endDate) }}
+            </UBadge>
+            <span v-else class="text-muted italic">Tanpa batas waktu</span>
+          </div>
+        </template>
+
+        <template #actions-cell="{ row }">
+          <div class="flex items-center gap-1">
+            <UButton
+              icon="i-lucide-pencil"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              aria-label="Edit Event"
+              @click="openEditEventModal(row.original)"
+            />
+            <UButton
+              icon="i-lucide-trash-2"
+              color="error"
+              variant="ghost"
+              size="xs"
+              aria-label="Hapus Event"
+              @click="openDeleteConfirm('event', row.original.id, row.original.title)"
+            />
+          </div>
+        </template>
+      </UTable>
+    </UCard>
+
     <!-- SECTION: CRUD Mata Kuliah -->
     <UCard>
       <template #header>
@@ -438,6 +725,22 @@ const subjectColumns = [
         :data="subjects"
         :columns="subjectColumns"
       >
+        <template #name-cell="{ row }">
+          <div class="space-y-1">
+            <div class="text-sm font-semibold text-highlighted">
+              {{ row.original.name }}
+            </div>
+            <UBadge
+              v-if="row.original.isReplacement"
+              color="warning"
+              variant="subtle"
+              size="xs"
+            >
+              Matkul Ganti
+            </UBadge>
+          </div>
+        </template>
+
         <template #dayTime-cell="{ row }">
           <div class="text-sm">
             <span class="font-medium text-highlighted">{{ row.original.day || '-' }}</span>
@@ -452,20 +755,31 @@ const subjectColumns = [
 
         <template #location-cell="{ row }">
           <div class="text-sm">
-            <span
-              v-if="row.original.room"
-              class="font-medium text-highlighted"
-            >R. {{ row.original.room }}</span>
-            <span
-              v-else
-              class="text-muted"
-            >-</span>
-            <span
-              v-if="row.original.building"
-              class="text-muted block text-xs"
+            <UBadge
+              v-if="row.original.isOnline"
+              color="info"
+              variant="subtle"
+              size="sm"
             >
-              Gedung {{ row.original.building }} <template v-if="row.original.floor">, Lt. {{ row.original.floor }}</template>
-            </span>
+              <UIcon name="i-lucide-video" class="size-3.5 mr-1" />
+              Daring
+            </UBadge>
+            <template v-else>
+              <span
+                v-if="row.original.room"
+                class="font-medium text-highlighted"
+              >R. {{ row.original.room }}</span>
+              <span
+                v-else
+                class="text-muted"
+              >-</span>
+              <span
+                v-if="row.original.building"
+                class="text-muted block text-xs"
+              >
+                Gedung {{ row.original.building }} <template v-if="row.original.floor">, Lt. {{ row.original.floor }}</template>
+              </span>
+            </template>
           </div>
         </template>
 
@@ -736,7 +1050,25 @@ const subjectColumns = [
           </div>
         </div>
 
-        <div class="grid grid-cols-3 gap-3">
+        <!-- 1. Pilihan Metode / Lokasi Perkuliahan Daring vs Luring -->
+        <UFormField
+          label="Metode / Lokasi Perkuliahan"
+          required
+        >
+          <USelect
+            v-model="subjectForm.isOnline"
+            :items="[
+              { label: 'Luring (Tatap Muka di Ruangan)', value: false },
+              { label: 'Daring (Online)', value: true }
+            ]"
+            value-attribute="value"
+            option-attribute="label"
+            class="w-full"
+          />
+        </UFormField>
+
+        <!-- Tampilkan Gedung, Lantai, Ruangan hanya saat LURING -->
+        <div v-if="!subjectForm.isOnline" class="grid grid-cols-3 gap-3 p-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800">
           <UFormField label="Gedung">
             <UInput
               v-model="subjectForm.building"
@@ -760,6 +1092,11 @@ const subjectColumns = [
           </UFormField>
         </div>
 
+        <div v-else class="p-3 bg-info-50/20 text-info rounded-xl border border-info/20 text-xs flex items-center gap-2">
+          <UIcon name="i-lucide-video" class="size-4 shrink-0" />
+          <span>Perkuliahan diselenggarakan secara Daring (Online). Tidak perlu mengisi nomor ruangan.</span>
+        </div>
+
         <!-- 7.5 Kolom Dosen InputMenu Multiple -->
         <UFormField
           label="Dosen Pengampu"
@@ -773,6 +1110,133 @@ const subjectColumns = [
             class="w-full"
           />
         </UFormField>
+
+        <!-- 2. Mata Kuliah Pengganti (Hilang setelah selesai sekali) -->
+        <UFormField label="Opsi Tambahan">
+          <UCheckbox
+            v-model="subjectForm.isReplacement"
+            label="Mata Kuliah Ganti (hilang setelah dilalui sekali)"
+            description="Mata kuliah ini hanya berlaku satu kali untuk menggantikan jadwal lain, dan akan otomatis terhapus dari sistem setelah jam perkuliahan selesai."
+          />
+        </UFormField>
+      </div>
+    </FormModal>
+
+    <!-- MODAL: CRUD Event Mata Kuliah dengan Tiptap UEditor -->
+    <FormModal
+      v-model:open="showEventModal"
+      :title="editingEventId === null ? 'Tambah Event Perkuliahan' : 'Edit Event Perkuliahan'"
+      description="Buat pengumuman, kuis, atau tugas khusus yang terhubung ke mata kuliah"
+      :loading="submittingForm"
+      @submit="submitEventForm"
+    >
+      <div class="space-y-4">
+        <!-- Hidden file input for base64 image upload -->
+        <input
+          ref="imageInputRef"
+          type="file"
+          accept="image/*"
+          class="hidden"
+          @change="onImageFileSelected"
+        >
+
+        <UFormField
+          label="Mata Kuliah Terkait"
+          required
+        >
+          <USelect
+            v-model="eventForm.subjectId"
+            :items="subjectOptions"
+            value-attribute="value"
+            option-attribute="label"
+            placeholder="Pilih mata kuliah..."
+            class="w-full"
+            @update:model-value="(val) => { if (!editingEventId) eventForm.endDate = calculateNextSubjectEndTime(val) }"
+          />
+        </UFormField>
+
+        <UFormField
+          label="Judul Event"
+          required
+        >
+          <UInput
+            v-model="eventForm.title"
+            placeholder="cth. Kuis 1 Materi OOP / Pengumpulan Tugas Kelompok"
+            class="w-full"
+          />
+        </UFormField>
+
+        <UFormField
+          label="Batas Waktu Event (Auto-Expiry)"
+          description="Event akan otomatis hilang setelah waktu ini terlewati. Kosongkan jika tanpa batas waktu."
+        >
+          <div class="space-y-2">
+            <UInput
+              v-model="eventForm.endDate"
+              type="datetime-local"
+              class="w-full"
+            />
+            <div class="flex items-center gap-2">
+              <UButton
+                label="Set Sesuai Jadwal Matkul Terdekat"
+                icon="i-lucide-wand-sparkles"
+                color="neutral"
+                variant="subtle"
+                size="xs"
+                @click="eventForm.endDate = calculateNextSubjectEndTime(eventForm.subjectId || null)"
+              />
+              <UButton
+                v-if="eventForm.endDate"
+                label="Hapus Batas Waktu"
+                icon="i-lucide-x"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                @click="eventForm.endDate = ''"
+              />
+            </div>
+          </div>
+        </UFormField>
+
+        <UFormField
+          label="Deskripsi & Rincian Event"
+          description="Gunakan editor untuk menyusun rincian materi, instruksi, dan gambar"
+        >
+          <div class="space-y-2">
+            <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden bg-white dark:bg-neutral-950">
+              <UEditor
+                v-slot="{ editor }"
+                v-model="eventForm.description"
+                placeholder="Tuliskan rincian event di sini..."
+                class="p-4 min-h-36 max-h-80 overflow-y-auto text-sm"
+              >
+                <div class="border-b border-neutral-200 dark:border-neutral-800 p-2 bg-neutral-50 dark:bg-neutral-900/50 flex flex-wrap items-center justify-between gap-2">
+                  <UEditorToolbar
+                    :editor="editor"
+                    :items="[
+                      { kind: 'mark', mark: 'bold', icon: 'i-lucide-bold' },
+                      { kind: 'mark', mark: 'italic', icon: 'i-lucide-italic' },
+                      { kind: 'heading', level: 2, icon: 'i-lucide-heading-2' },
+                      { kind: 'heading', level: 3, icon: 'i-lucide-heading-3' },
+                      { kind: 'bulletList', icon: 'i-lucide-list' },
+                      { kind: 'orderedList', icon: 'i-lucide-list-ordered' },
+                      { kind: 'blockquote', icon: 'i-lucide-quote' },
+                      { kind: 'link', icon: 'i-lucide-link' }
+                    ]"
+                  />
+                  <UButton
+                    label="Sisipkan Gambar"
+                    icon="i-lucide-image-plus"
+                    color="neutral"
+                    variant="outline"
+                    size="xs"
+                    @click="triggerImageUpload(editor)"
+                  />
+                </div>
+              </UEditor>
+            </div>
+          </div>
+        </UFormField>
       </div>
     </FormModal>
 
@@ -783,7 +1247,7 @@ const subjectColumns = [
     >
       <template #body>
         <p class="text-sm text-muted">
-          Apakah Anda yakin ingin menghapus {{ deleteType === 'lecturer' ? 'dosen' : 'mata kuliah' }}
+          Apakah Anda yakin ingin menghapus {{ deleteType === 'lecturer' ? 'dosen' : deleteType === 'subject' ? 'mata kuliah' : 'event' }}
           <span class="font-semibold text-highlighted">"{{ targetDeleteName }}"</span>? Tindakan ini tidak dapat dibatalkan.
         </p>
       </template>
@@ -806,5 +1270,11 @@ const subjectColumns = [
         </div>
       </template>
     </UModal>
+
+    <!-- MODAL: Preview Detail Event -->
+    <EventDetailModal
+      v-model:open="showPreviewEventModal"
+      :event="previewingEvent"
+    />
   </div>
 </template>

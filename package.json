@@ -20,12 +20,18 @@
     "@iconify-json/simple-icons": "^1.2.93",
     "@libsql/client": "^0.17.4",
     "@nuxt/ui": "^4.10.0",
+    "@tiptap/extension-image": "^3.30.2",
+    "@tiptap/extension-link": "^3.30.2",
+    "@tiptap/html": "^3.30.2",
+    "@tiptap/starter-kit": "^3.30.2",
     "bcryptjs": "^3.0.3",
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
     "nuxt": "^4.5.2",
     "nuxt-auth-utils": "0.5.30",
     "tailwindcss": "^4.3.3",
+    "v-viewer": "^3.0.23",
+    "viewerjs": "^1.12.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
