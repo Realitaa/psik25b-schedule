@@ -2,8 +2,26 @@ import VueViewer from 'v-viewer'
 import 'viewerjs/dist/viewer.css'
 
 export default defineNuxtPlugin((nuxtApp) => {
+  // Prevent clicks inside Viewer.js from closing parent modals (e.g. Radix Dialog / UModal)
+  if (import.meta.client) {
+    const stopViewerPropagation = (e: Event) => {
+      const target = e.target as HTMLElement | null
+      if (target?.closest('.viewer-container') || target?.classList.contains('viewer-container')) {
+        e.stopPropagation()
+      }
+    }
+
+    window.addEventListener('pointerdown', stopViewerPropagation, true)
+    window.addEventListener('click', stopViewerPropagation, true)
+    window.addEventListener('mousedown', stopViewerPropagation, true)
+  }
+
   nuxtApp.vueApp.use(VueViewer, {
     defaultOptions: {
+      toolbar: false,
+      navbar: false,
+      title: false,
+      button: true,
       movable: true,
       zoomable: true,
       rotatable: true,
@@ -11,21 +29,7 @@ export default defineNuxtPlugin((nuxtApp) => {
       transition: true,
       fullscreen: true,
       keyboard: true,
-      toolbar: {
-        zoomIn: 1,
-        zoomOut: 1,
-        oneToOne: 1,
-        reset: 1,
-        prev: 0,
-        play: 0,
-        next: 0,
-        rotateLeft: 1,
-        rotateRight: 1,
-        flipHorizontal: 1,
-        flipVertical: 1
-      },
-      title: false,
-      navbar: false
+      backdrop: true
     }
   })
 })

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CalendarDate } from '@internationalized/date'
 import { useDayStatus } from '~/composables/useDayStatus'
 import type {
   AcademicYearSelect,
@@ -70,12 +71,12 @@ const subjectForm = reactive({
 const eventForm = reactive({
   subjectId: undefined as number | undefined,
   title: '',
-  description: null as any,
+  description: '',
   endDate: ''
 })
 
-const imageInputRef = ref<HTMLInputElement | null>(null)
-const activeEditorInstance = ref<any>(null)
+const selectedCalendarDate = shallowRef<CalendarDate | undefined>()
+const selectedTime = ref('10:30')
 
 const daysList = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
 
@@ -380,12 +381,64 @@ function calculateNextSubjectEndTime(subjectId: number | null) {
   return `${year}-${month}-${date}T${h}:${m}`
 }
 
+function setCalendarFromIsoString(isoStr?: string | null) {
+  if (!isoStr) {
+    selectedCalendarDate.value = undefined
+    selectedTime.value = '10:30'
+    eventForm.endDate = ''
+    return
+  }
+  try {
+    const d = new Date(isoStr)
+    selectedCalendarDate.value = new CalendarDate(d.getFullYear(), d.getMonth() + 1, d.getDate())
+    const h = String(d.getHours()).padStart(2, '0')
+    const min = String(d.getMinutes()).padStart(2, '0')
+    selectedTime.value = `${h}:${min}`
+    const yStr = String(d.getFullYear()).padStart(4, '0')
+    const mStr = String(d.getMonth() + 1).padStart(2, '0')
+    const dStr = String(d.getDate()).padStart(2, '0')
+    eventForm.endDate = `${yStr}-${mStr}-${dStr}T${h}:${min}`
+  } catch {
+    selectedCalendarDate.value = undefined
+    selectedTime.value = '10:30'
+    eventForm.endDate = ''
+  }
+}
+
+function updateCalendarEndDate() {
+  if (!selectedCalendarDate.value) {
+    eventForm.endDate = ''
+    return
+  }
+  const y = String(selectedCalendarDate.value.year).padStart(4, '0')
+  const m = String(selectedCalendarDate.value.month).padStart(2, '0')
+  const d = String(selectedCalendarDate.value.day).padStart(2, '0')
+  const t = selectedTime.value || '23:59'
+  eventForm.endDate = `${y}-${m}-${d}T${t}`
+}
+
+const formattedCalendarEndDate = computed(() => {
+  if (!selectedCalendarDate.value) return null
+  const y = selectedCalendarDate.value.year
+  const m = selectedCalendarDate.value.month
+  const d = selectedCalendarDate.value.day
+  const dateObj = new Date(y, m - 1, d)
+  const dateFormatted = dateObj.toLocaleDateString('id-ID', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  })
+  return `${dateFormatted}, pukul ${selectedTime.value || '23:59'} WIB`
+})
+
 function openAddEventModal() {
   editingEventId.value = null
   eventForm.subjectId = subjects.value[0]?.id || undefined
   eventForm.title = ''
-  eventForm.description = null
-  eventForm.endDate = calculateNextSubjectEndTime(eventForm.subjectId || null)
+  eventForm.description = ''
+  const nextIso = calculateNextSubjectEndTime(eventForm.subjectId || null)
+  setCalendarFromIsoString(nextIso)
   showEventModal.value = true
 }
 
@@ -393,51 +446,14 @@ function openEditEventModal(ev: EventWithSubject) {
   editingEventId.value = ev.id
   eventForm.subjectId = ev.subjectId
   eventForm.title = ev.title
-  try {
-    eventForm.description = typeof ev.description === 'string' ? JSON.parse(ev.description) : ev.description
-  } catch {
-    eventForm.description = ev.description
-  }
-
-  if (ev.endDate) {
-    const d = new Date(ev.endDate)
-    const year = d.getFullYear()
-    const month = String(d.getMonth() + 1).padStart(2, '0')
-    const date = String(d.getDate()).padStart(2, '0')
-    const h = String(d.getHours()).padStart(2, '0')
-    const m = String(d.getMinutes()).padStart(2, '0')
-    eventForm.endDate = `${year}-${month}-${date}T${h}:${m}`
-  } else {
-    eventForm.endDate = ''
-  }
-
+  eventForm.description = ev.description ? renderTiptapToHtml(ev.description) : ''
+  setCalendarFromIsoString(ev.endDate)
   showEventModal.value = true
 }
 
 function openPreviewEventModal(ev: EventWithSubject) {
   previewingEvent.value = ev
   showPreviewEventModal.value = true
-}
-
-function triggerImageUpload(editor: any) {
-  activeEditorInstance.value = editor
-  imageInputRef.value?.click()
-}
-
-function onImageFileSelected(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0]
-  if (!file) return
-  const reader = new FileReader()
-  reader.onload = (event) => {
-    const base64 = event.target?.result as string
-    if (base64 && activeEditorInstance.value) {
-      activeEditorInstance.value.chain().focus().setImage({ src: base64 }).run()
-      toast.add({ title: 'Gambar Berhasil Disisipkan', color: 'success' })
-    }
-  }
-  reader.readAsDataURL(file)
-  // Reset input so same file can be selected again if needed
-  if (imageInputRef.value) imageInputRef.value.value = ''
 }
 
 async function submitEventForm() {
@@ -455,7 +471,7 @@ async function submitEventForm() {
     const payload = {
       subjectId: eventForm.subjectId,
       title: eventForm.title,
-      description: eventForm.description ? JSON.stringify(eventForm.description) : null,
+      description: eventForm.description || null,
       endDate: eventForm.endDate ? new Date(eventForm.endDate).toISOString() : null
     }
 
@@ -1131,15 +1147,6 @@ const eventColumns = [
       @submit="submitEventForm"
     >
       <div class="space-y-4">
-        <!-- Hidden file input for base64 image upload -->
-        <input
-          ref="imageInputRef"
-          type="file"
-          accept="image/*"
-          class="hidden"
-          @change="onImageFileSelected"
-        >
-
         <UFormField
           label="Mata Kuliah Terkait"
           required
@@ -1151,7 +1158,12 @@ const eventColumns = [
             option-attribute="label"
             placeholder="Pilih mata kuliah..."
             class="w-full"
-            @update:model-value="(val) => { if (!editingEventId) eventForm.endDate = calculateNextSubjectEndTime(val) }"
+            @update:model-value="(val) => {
+              if (!editingEventId) {
+                const targetIso = calculateNextSubjectEndTime(val || null)
+                setCalendarFromIsoString(targetIso)
+              }
+            }"
           />
         </UFormField>
 
@@ -1168,14 +1180,38 @@ const eventColumns = [
 
         <UFormField
           label="Batas Waktu Event (Auto-Expiry)"
-          description="Event akan otomatis hilang setelah waktu ini terlewati. Kosongkan jika tanpa batas waktu."
+          description="Gunakan kalender untuk memilih tanggal dan jam berakhirnya event. Kosongkan jika tanpa batas waktu."
         >
           <div class="space-y-2">
-            <UInput
-              v-model="eventForm.endDate"
-              type="datetime-local"
-              class="w-full"
-            />
+            <UPopover>
+              <UButton
+                icon="i-lucide-calendar"
+                color="neutral"
+                variant="subtle"
+                class="w-full justify-start text-left font-normal"
+                :label="formattedCalendarEndDate || 'Pilih Tanggal & Jam Batas Waktu...'"
+              />
+
+              <template #content>
+                <div class="p-3 space-y-3">
+                  <UCalendar
+                    v-model="selectedCalendarDate"
+                    class="rounded-lg"
+                    @update:model-value="updateCalendarEndDate"
+                  />
+                  <div class="flex items-center justify-between gap-2 pt-2 border-t border-subtle">
+                    <span class="text-xs text-muted font-medium">Jam Batas (WIB):</span>
+                    <UInput
+                      v-model="selectedTime"
+                      type="time"
+                      class="w-32"
+                      @update:model-value="updateCalendarEndDate"
+                    />
+                  </div>
+                </div>
+              </template>
+            </UPopover>
+
             <div class="flex items-center gap-2">
               <UButton
                 label="Set Sesuai Jadwal Matkul Terdekat"
@@ -1183,16 +1219,19 @@ const eventColumns = [
                 color="neutral"
                 variant="subtle"
                 size="xs"
-                @click="eventForm.endDate = calculateNextSubjectEndTime(eventForm.subjectId || null)"
+                @click="() => {
+                  const targetIso = calculateNextSubjectEndTime(eventForm.subjectId || null)
+                  setCalendarFromIsoString(targetIso)
+                }"
               />
               <UButton
-                v-if="eventForm.endDate"
+                v-if="selectedCalendarDate"
                 label="Hapus Batas Waktu"
                 icon="i-lucide-x"
                 color="neutral"
                 variant="ghost"
                 size="xs"
-                @click="eventForm.endDate = ''"
+                @click="setCalendarFromIsoString(null)"
               />
             </div>
           </div>
@@ -1202,40 +1241,10 @@ const eventColumns = [
           label="Deskripsi & Rincian Event"
           description="Gunakan editor untuk menyusun rincian materi, instruksi, dan gambar"
         >
-          <div class="space-y-2">
-            <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden bg-white dark:bg-neutral-950">
-              <UEditor
-                v-slot="{ editor }"
-                v-model="eventForm.description"
-                placeholder="Tuliskan rincian event di sini..."
-                class="p-4 min-h-36 max-h-80 overflow-y-auto text-sm"
-              >
-                <div class="border-b border-neutral-200 dark:border-neutral-800 p-2 bg-neutral-50 dark:bg-neutral-900/50 flex flex-wrap items-center justify-between gap-2">
-                  <UEditorToolbar
-                    :editor="editor"
-                    :items="[
-                      { kind: 'mark', mark: 'bold', icon: 'i-lucide-bold' },
-                      { kind: 'mark', mark: 'italic', icon: 'i-lucide-italic' },
-                      { kind: 'heading', level: 2, icon: 'i-lucide-heading-2' },
-                      { kind: 'heading', level: 3, icon: 'i-lucide-heading-3' },
-                      { kind: 'bulletList', icon: 'i-lucide-list' },
-                      { kind: 'orderedList', icon: 'i-lucide-list-ordered' },
-                      { kind: 'blockquote', icon: 'i-lucide-quote' },
-                      { kind: 'link', icon: 'i-lucide-link' }
-                    ]"
-                  />
-                  <UButton
-                    label="Sisipkan Gambar"
-                    icon="i-lucide-image-plus"
-                    color="neutral"
-                    variant="outline"
-                    size="xs"
-                    @click="triggerImageUpload(editor)"
-                  />
-                </div>
-              </UEditor>
-            </div>
-          </div>
+          <EventEditor
+            v-model="eventForm.description"
+            placeholder="Tuliskan rincian event di sini..."
+          />
         </UFormField>
       </div>
     </FormModal>

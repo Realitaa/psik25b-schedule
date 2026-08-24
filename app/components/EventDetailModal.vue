@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { EventSelect, SubjectSelect } from '#shared/types'
+import EventRenderer from '~/components/event/EventRenderer.vue'
 
 const props = defineProps<{
   open: boolean
@@ -13,10 +14,6 @@ const emit = defineEmits<{
 const isOpen = computed({
   get: () => props.open,
   set: (val: boolean) => emit('update:open', val)
-})
-
-const htmlContent = computed(() => {
-  return renderTiptapToHtml(props.event?.description)
 })
 
 function formatEndDate(dateStr?: string | null) {
@@ -71,25 +68,28 @@ function formatEndDate(dateStr?: string | null) {
               {{ formatEndDate(event.endDate) }}
             </UBadge>
           </div>
+
+          <div
+            v-if="event.author"
+            class="flex items-center justify-between gap-2 flex-wrap"
+          >
+            <span class="text-muted">Dibuat Oleh:</span>
+            <span class="font-medium text-highlighted flex items-center gap-1.5">
+              <UIcon
+                name="i-lucide-user"
+                class="size-3.5 text-primary"
+              />
+              {{ event.author.name || event.author.username }}
+            </span>
+          </div>
         </div>
 
-        <!-- Description / HTML Rich Content with v-viewer -->
+        <!-- Description / HTML Rich Content rendered via EventRenderer -->
         <div class="space-y-2">
           <h4 class="text-xs font-semibold text-muted uppercase tracking-wider">
             Deskripsi & Materi
           </h4>
-          <div
-            v-if="htmlContent"
-            v-viewer
-            class="prose dark:prose-invert max-w-none text-sm break-words [&_img]:cursor-zoom-in [&_img]:rounded-lg [&_img]:max-h-96 [&_img]:w-auto [&_img]:object-contain [&_img]:shadow-sm hover:[&_img]:opacity-90 transition-opacity"
-            v-html="htmlContent"
-          />
-          <div
-            v-else
-            class="text-sm text-muted italic py-2"
-          >
-            Tidak ada rincian deskripsi tambahan.
-          </div>
+          <EventRenderer :content="event.description" />
         </div>
       </div>
     </template>

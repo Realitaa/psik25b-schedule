@@ -4,3 +4,48 @@
 @theme {
   --font-sans: 'Poppins', sans-serif;
 }
+
+/* Custom styling for v-viewer / Viewer.js close button */
+.viewer-button.viewer-close {
+  top: 1.5rem !important;
+  right: 1.5rem !important;
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 9999px !important;
+  background-color: rgba(15, 23, 42, 0.75) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  overflow: visible !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  z-index: 2050 !important;
+}
+
+.viewer-button.viewer-close:hover {
+  background-color: rgba(15, 23, 42, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.4) !important;
+  transform: scale(1.08) !important;
+}
+
+.viewer-button.viewer-close::before {
+  position: static !important;
+  bottom: auto !important;
+  left: auto !important;
+  margin: auto !important;
+}
+
+/* TipTap Editor & Content Image Display */
+.tiptap img,
+.ProseMirror img {
+  max-width: 100%;
+  max-height: 24rem;
+  height: auto;
+  border-radius: 0.5rem;
+  display: block;
+  margin: 0.75rem 0;
+  object-fit: contain;
+}

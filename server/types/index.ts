@@ -76,6 +76,7 @@ export interface CreateSubjectDTO {
 
 export interface CreateEventDTO {
   subjectId: number
+  authorId?: number | null
   title: string
   description?: string | null
   endDate?: string | null

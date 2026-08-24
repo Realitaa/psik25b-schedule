@@ -53,6 +53,7 @@ export const subjectLecturers = sqliteTable('subject_lecturers', {
 export const events = sqliteTable('events', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   subjectId: integer('subject_id').notNull().references(() => subjects.id, { onDelete: 'cascade' }),
+  authorId: integer('author_id').references(() => users.id, { onDelete: 'set null' }),
   title: text('title').notNull(),
   description: text('description'), // TipTap JSON string
   endDate: text('end_date'), // ISO timestamp string or null

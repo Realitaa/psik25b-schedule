@@ -11,6 +11,7 @@ const eventSchema = z.object({
 
 export default defineEventHandler(async (event) => {
   try {
+    const session = await getUserSession(event)
     const body = await readBody(event)
     const parseResult = eventSchema.safeParse(body)
     if (!parseResult.success) {
@@ -18,7 +19,12 @@ export default defineEventHandler(async (event) => {
       throw new ValidationException(firstError)
     }
 
-    return await scheduleService.createEvent(parseResult.data)
+    const eventData = {
+      ...parseResult.data,
+      authorId: session.user?.id || null
+    }
+
+    return await scheduleService.createEvent(eventData)
   } catch (err: unknown) {
     if (err instanceof AppException) {
       throw createError({ statusCode: err.statusCode, statusMessage: err.message })

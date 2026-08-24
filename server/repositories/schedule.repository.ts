@@ -1,5 +1,5 @@
 import { eq, inArray, lt, and, isNotNull } from 'drizzle-orm'
-import { academicYears, lecturers, subjects, subjectLecturers, events } from '../db/schema'
+import { academicYears, lecturers, subjects, subjectLecturers, events, users } from '../db/schema'
 import type {
   AcademicYearSelect,
   AcademicYearInsert,
@@ -84,10 +84,16 @@ export class EventRepository {
 
     for (const ev of allEvents) {
       const subject = await db.select().from(subjects).where(eq(subjects.id, ev.subjectId)).get()
+      let author = null
+      if (ev.authorId) {
+        const u = await db.select({ id: users.id, name: users.name, username: users.username }).from(users).where(eq(users.id, ev.authorId)).get()
+        if (u) author = u
+      }
       if (subject) {
         result.push({
           ...ev,
-          subject
+          subject,
+          author
         })
       }
     }
@@ -96,20 +102,45 @@ export class EventRepository {
   }
 
   async findById(id: number): Promise<EventSelect | undefined> {
-    return await db.select().from(events).where(eq(events.id, id)).get()
+    const ev = await db.select().from(events).where(eq(events.id, id)).get()
+    if (!ev) return undefined
+    let author = null
+    if (ev.authorId) {
+      const u = await db.select({ id: users.id, name: users.name, username: users.username }).from(users).where(eq(users.id, ev.authorId)).get()
+      if (u) author = u
+    }
+    return {
+      ...ev,
+      author
+    }
   }
 
   async findBySubjectId(subjectId: number): Promise<EventSelect[]> {
     await this.cleanupExpired()
-    return await db.select().from(events).where(eq(events.subjectId, subjectId)).all()
+    const allEvs = await db.select().from(events).where(eq(events.subjectId, subjectId)).all()
+    const result: EventSelect[] = []
+    for (const ev of allEvs) {
+      let author = null
+      if (ev.authorId) {
+        const u = await db.select({ id: users.id, name: users.name, username: users.username }).from(users).where(eq(users.id, ev.authorId)).get()
+        if (u) author = u
+      }
+      result.push({
+        ...ev,
+        author
+      })
+    }
+    return result
   }
 
   async create(data: EventInsert): Promise<EventSelect> {
-    return await db.insert(events).values(data).returning().get()
+    const created = await db.insert(events).values(data).returning().get()
+    return (await this.findById(created.id))!
   }
 
   async update(id: number, data: Partial<EventInsert>): Promise<EventSelect | undefined> {
-    return await db.update(events).set(data).where(eq(events.id, id)).returning().get()
+    await db.update(events).set(data).where(eq(events.id, id)).run()
+    return await this.findById(id)
   }
 
   async delete(id: number): Promise<void> {
@@ -141,9 +172,22 @@ export class SubjectRepository {
         lecturerList = await db.select().from(lecturers).where(inArray(lecturers.id, ids)).all()
       }
 
-      // Fetch active events for this subject
+      // Fetch active events for this subject with author
       const subjectEvents = await db.select().from(events).where(eq(events.subjectId, sub.id)).all()
-      const activeEvents = subjectEvents.filter(ev => !ev.endDate || ev.endDate >= nowISO)
+      const activeEvents: EventSelect[] = []
+      for (const ev of subjectEvents) {
+        if (!ev.endDate || ev.endDate >= nowISO) {
+          let author = null
+          if (ev.authorId) {
+            const u = await db.select({ id: users.id, name: users.name, username: users.username }).from(users).where(eq(users.id, ev.authorId)).get()
+            if (u) author = u
+          }
+          activeEvents.push({
+            ...ev,
+            author
+          })
+        }
+      }
 
       result.push({
         ...sub,
@@ -173,7 +217,20 @@ export class SubjectRepository {
 
     const nowISO = new Date().toISOString()
     const subjectEvents = await db.select().from(events).where(eq(events.subjectId, sub.id)).all()
-    const activeEvents = subjectEvents.filter(ev => !ev.endDate || ev.endDate >= nowISO)
+    const activeEvents: EventSelect[] = []
+    for (const ev of subjectEvents) {
+      if (!ev.endDate || ev.endDate >= nowISO) {
+        let author = null
+        if (ev.authorId) {
+          const u = await db.select({ id: users.id, name: users.name, username: users.username }).from(users).where(eq(users.id, ev.authorId)).get()
+          if (u) author = u
+        }
+        activeEvents.push({
+          ...ev,
+          author
+        })
+      }
+    }
 
     return {
       ...sub,
