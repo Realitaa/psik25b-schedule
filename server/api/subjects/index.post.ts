@@ -1,10 +1,11 @@
 import { z } from 'zod'
-import { scheduleService } from '../../services/schedule.service'
+import type { SubjectWithLecturers } from '#shared/types'
+import { subjectService } from '../../services/subject.service'
 import { defineApiHandler } from '../../utils/handler'
 import { validateBody } from '../../utils/request'
 
-const subjectSchema = z.object({
-  academicYearId: z.number().nullable().optional(),
+const createSubjectSchema = z.object({
+  academicYearId: z.number().int().nullable().optional(),
   name: z.string().min(1, 'Nama mata kuliah wajib diisi'),
   isOnline: z.boolean().optional(),
   isReplacement: z.boolean().optional(),
@@ -18,7 +19,7 @@ const subjectSchema = z.object({
   lecturerShortnames: z.array(z.string()).optional()
 })
 
-export default defineApiHandler(async (event) => {
-  const body = await validateBody(event, subjectSchema)
-  return await scheduleService.createSubject(body)
+export default defineApiHandler(async (event): Promise<SubjectWithLecturers> => {
+  const body = await validateBody(event, createSubjectSchema)
+  return await subjectService.createSubject(body)
 })

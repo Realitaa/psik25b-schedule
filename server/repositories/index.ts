@@ -1,0 +1,5 @@
+export * from './academic-year.repository'
+export * from './lecturer.repository'
+export * from './subject.repository'
+export * from './event.repository'
+export * from './user.repository'

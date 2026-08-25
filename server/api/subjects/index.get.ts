@@ -1,6 +1,7 @@
-import { scheduleService } from '../../services/schedule.service'
+import type { SubjectWithLecturers } from '#shared/types'
+import { subjectService } from '../../services/subject.service'
 import { defineApiHandler } from '../../utils/handler'
 
-export default defineApiHandler(async () => {
-  return await scheduleService.getSubjects()
+export default defineApiHandler(async (): Promise<SubjectWithLecturers[]> => {
+  return await subjectService.getSubjects()
 })

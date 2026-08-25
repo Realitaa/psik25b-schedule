@@ -1,0 +1,5 @@
+export * from './academic-year.service'
+export * from './lecturer.service'
+export * from './subject.service'
+export * from './event.service'
+export * from './auth.service'

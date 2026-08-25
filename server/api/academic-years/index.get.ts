@@ -1,12 +1,14 @@
 import type { AcademicYearsResponse } from '#shared/types'
-import { scheduleService } from '../../services/schedule.service'
+import { academicYearService } from '../../services/academic-year.service'
 import { defineApiHandler } from '../../utils/handler'
 
 export default defineApiHandler(async (): Promise<AcademicYearsResponse> => {
-  const years = await scheduleService.getAcademicYears()
-  const activeYear = await scheduleService.getActiveAcademicYear()
+  const [years, active] = await Promise.all([
+    academicYearService.getAcademicYears(),
+    academicYearService.getActiveAcademicYear()
+  ])
   return {
     years,
-    activeYearId: activeYear ? activeYear.id : null
+    activeYearId: active?.id ?? null
   }
 })

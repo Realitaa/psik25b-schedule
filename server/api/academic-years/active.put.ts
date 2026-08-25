@@ -1,14 +1,14 @@
 import { z } from 'zod'
-import { scheduleService } from '../../services/schedule.service'
+import { academicYearService } from '../../services/academic-year.service'
 import { defineApiHandler } from '../../utils/handler'
 import { validateBody } from '../../utils/request'
 
-const activeSchema = z.object({
-  id: z.number().nullable()
+const setActiveYearSchema = z.object({
+  id: z.number().int().nullable()
 })
 
-export default defineApiHandler(async (event) => {
-  const body = await validateBody(event, activeSchema)
-  await scheduleService.setActiveAcademicYear(body.id)
+export default defineApiHandler(async (event): Promise<{ success: boolean }> => {
+  const body = await validateBody(event, setActiveYearSchema)
+  await academicYearService.setActiveAcademicYear(body.id)
   return { success: true }
 })
