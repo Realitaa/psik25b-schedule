@@ -4,15 +4,16 @@ useHead({
     { name: 'viewport', content: 'width=device-width, initial-scale=1' }
   ],
   link: [
-    { rel: 'icon', href: '/favicon.ico' }
+    { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+    { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }
   ],
   htmlAttrs: {
-    lang: 'en'
+    lang: 'id'
   }
 })
 
-const title = 'PSIK25B Schedule'
-const description = 'Sistem Jadwal Perkuliahan & Manajamen Kelas PSIK25B.'
+const title = 'Jadwal Perkuliahan PSIK25B'
+const description = 'Portal Informasi dan Jadwal Perkuliahan Mahasiswa PSIK 2025 B.'
 
 useSeoMeta({
   title,
@@ -40,6 +41,9 @@ async function handleLogout() {
 <template>
   <UApp>
     <NuxtLoadingIndicator color="teal" />
+    <VitePwaManifest />
+    <PwaOfflineBanner />
+
     <UHeader :toggle="false">
       <template #left>
         <NuxtLink
@@ -113,5 +117,8 @@ async function handleLogout() {
         />
       </template>
     </UFooter>
+
+    <!-- Floating PWA update prompt if new version is available -->
+    <PwaUpdatePrompt />
   </UApp>
 </template>
