@@ -1,4 +1,14 @@
 <script setup lang="ts">
+interface TipTapEditorInstance {
+  chain: () => {
+    focus: () => {
+      setImage: (options: { src: string }) => {
+        run: () => void
+      }
+    }
+  }
+}
+
 const props = withDefaults(defineProps<{
   modelValue?: string
   placeholder?: string
@@ -17,14 +27,14 @@ const content = computed({
 })
 
 const imageInputRef = ref<HTMLInputElement | null>(null)
-const activeEditorInstance = ref<any>(null)
+const activeEditorInstance = ref<TipTapEditorInstance | null>(null)
 const toast = useToast()
 
 // Maximum file size for inline base64 image (500 KB to avoid SQLite D1 query payload limit)
 const MAX_IMAGE_SIZE_BYTES = 500 * 1024
 
-function triggerImageUpload(editor: any) {
-  activeEditorInstance.value = editor
+function triggerImageUpload(editor: unknown) {
+  activeEditorInstance.value = editor as TipTapEditorInstance
   imageInputRef.value?.click()
 }
 

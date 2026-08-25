@@ -1,4 +1,4 @@
-import type { HolidayAPIResponse, HolidayItem } from '../types'
+import type { HolidayAPIResponse, HolidayItem } from '#shared/types'
 
 function getSecondsUntilEndOfMonth(): number {
   const now = new Date()

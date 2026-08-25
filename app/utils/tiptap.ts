@@ -1,4 +1,6 @@
-export function renderTiptapToHtml(content: any): string {
+import type { TipTapNode } from '#shared/types'
+
+export function renderTiptapToHtml(content: unknown): string {
   if (!content) return ''
   let str = typeof content === 'string' ? content.trim() : JSON.stringify(content)
 
@@ -6,8 +8,8 @@ export function renderTiptapToHtml(content: any): string {
   let iterations = 0
   while (iterations < 5) {
     if (
-      (str.startsWith('"') && str.endsWith('"')) ||
-      (str.startsWith('\'') && str.endsWith('\''))
+      (str.startsWith('"') && str.endsWith('"'))
+      || (str.startsWith('\'') && str.endsWith('\''))
     ) {
       try {
         const parsed = JSON.parse(str)
@@ -26,7 +28,7 @@ export function renderTiptapToHtml(content: any): string {
   // Handle TipTap JSON docs (object or string) safely without external dependencies
   if (str.startsWith('{') && (str.includes('"type":"doc"') || str.includes('"type": "doc"'))) {
     try {
-      const json = JSON.parse(str)
+      const json = JSON.parse(str) as TipTapNode
       return parseTipTapNodeToHtml(json)
     } catch {
       // fallback to treating as HTML string
@@ -36,7 +38,7 @@ export function renderTiptapToHtml(content: any): string {
   return str
 }
 
-function parseTipTapNodeToHtml(node: any): string {
+function parseTipTapNodeToHtml(node?: TipTapNode | null): string {
   if (!node) return ''
   if (node.type === 'text') {
     let text = escapeHtml(node.text || '')
@@ -46,7 +48,7 @@ function parseTipTapNodeToHtml(node: any): string {
         if (mark.type === 'italic') text = `<em>${text}</em>`
         if (mark.type === 'strike') text = `<s>${text}</s>`
         if (mark.type === 'link') {
-          const href = (mark.attrs?.href || '#').replace(/^["']+|["']+$/g, '')
+          const href = (String(node.attrs?.href || '#')).replace(/^["']+|["']+$/g, '')
           text = `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`
         }
       }
@@ -54,12 +56,12 @@ function parseTipTapNodeToHtml(node: any): string {
     return text
   }
   if (node.type === 'image') {
-    let src = (node.attrs?.src || '').trim().replace(/^["'\\]+|["'\\]+$/g, '').replace(/^%22|%22$/gi, '')
-    const alt = escapeHtml(node.attrs?.alt || '')
+    const src = (String(node.attrs?.src || '')).trim().replace(/^["'\\]+|["'\\]+$/g, '').replace(/^%22|%22$/gi, '')
+    const alt = escapeHtml(String(node.attrs?.alt || ''))
     return `<img src="${src}" alt="${alt}" />`
   }
 
-  const childrenHtml = (node.content || []).map(parseTipTapNodeToHtml).join('')
+  const childrenHtml = (node.content || []).map(child => parseTipTapNodeToHtml(child)).join('')
   if (node.type === 'doc') return childrenHtml
   if (node.type === 'paragraph') return `<p>${childrenHtml || '<br>'}</p>`
   if (node.type === 'heading') return `<h${node.attrs?.level || 2}>${childrenHtml}</h${node.attrs?.level || 2}>`

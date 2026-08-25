@@ -8,7 +8,7 @@ const DEPLOY_D1_DATABASE_ID = process.env.DEPLOY_D1_DATABASE_ID
 const DEPLOY_D1_DATABASE_NAME = process.env.DEPLOY_D1_DATABASE_NAME || 'psik25b-db'
 
 if (!DEPLOY_D1_DATABASE_ID) {
-  throw new Error("Missing DEPLOY_D1_DATABASE_ID environment variable!")
+  throw new Error('Missing DEPLOY_D1_DATABASE_ID environment variable!')
 }
 
 const source = await readFile(sourcePath, 'utf8')
@@ -27,4 +27,4 @@ if (!config.vars) {
 config.vars.NUXT_SESSION_PASSWORD = process.env.NUXT_SESSION_PASSWORD || 'ed7d21cd8a0644b9b5c9c5b2c99ead94'
 
 await writeFile(outputPath, JSON.stringify(config, null, 2), 'utf8')
-console.log("wrangler.deploy.jsonc successfully generated!")
+console.log('wrangler.deploy.jsonc successfully generated!')

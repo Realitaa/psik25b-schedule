@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { EventSelect, SubjectSelect } from '#shared/types'
+import { formatEventEndDate } from '#shared/utils/date'
 import EventRenderer from '~/components/event/EventRenderer.vue'
 
 const props = defineProps<{
@@ -40,23 +41,6 @@ const authorName = computed(() => {
   if (!author) return ''
   return author.name || author.username
 })
-
-function formatEndDate(dateStr?: string | null) {
-  if (!dateStr) return 'Tanpa batas waktu (Permanen)'
-  try {
-    const d = new Date(dateStr)
-    return d.toLocaleString('id-ID', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }) + ' WIB'
-  } catch {
-    return dateStr
-  }
-}
 </script>
 
 <template>
@@ -90,7 +74,7 @@ function formatEndDate(dateStr?: string | null) {
                 name="i-lucide-clock"
                 class="size-3.5 mr-1"
               />
-              {{ formatEndDate(event.endDate) }}
+              {{ formatEventEndDate(event.endDate) }}
             </UBadge>
           </div>
 

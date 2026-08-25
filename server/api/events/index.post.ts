@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { scheduleService } from '../../services/schedule.service'
-import { AppException, ValidationException } from '../../utils/exceptions'
+import { defineApiHandler } from '../../utils/handler'
+import { validateBody } from '../../utils/request'
 
 const eventSchema = z.object({
   subjectId: z.number().int({ message: 'Mata kuliah wajib dipilih' }),
@@ -9,26 +10,14 @@ const eventSchema = z.object({
   endDate: z.string().nullable().optional()
 })
 
-export default defineEventHandler(async (event) => {
-  try {
-    const session = await getUserSession(event)
-    const body = await readBody(event)
-    const parseResult = eventSchema.safeParse(body)
-    if (!parseResult.success) {
-      const firstError = parseResult.error.issues[0]?.message || 'Data event tidak valid'
-      throw new ValidationException(firstError)
-    }
+export default defineApiHandler(async (event) => {
+  const session = await getUserSession(event)
+  const body = await validateBody(event, eventSchema)
 
-    const eventData = {
-      ...parseResult.data,
-      authorId: session.user?.id || null
-    }
-
-    return await scheduleService.createEvent(eventData)
-  } catch (err: unknown) {
-    if (err instanceof AppException) {
-      throw createError({ statusCode: err.statusCode, statusMessage: err.message })
-    }
-    throw err
+  const eventData = {
+    ...body,
+    authorId: session.user?.id || null
   }
+
+  return await scheduleService.createEvent(eventData)
 })

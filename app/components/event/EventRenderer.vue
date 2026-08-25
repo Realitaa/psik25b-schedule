@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import type { TipTapDoc } from '#shared/types'
 import { renderTiptapToHtml } from '~/utils/tiptap'
 
 const props = defineProps<{
-  content?: any
+  content?: string | TipTapDoc | Record<string, unknown> | null
 }>()
 
 function cleanHtmlImages(html: string): string {
@@ -28,12 +29,14 @@ const renderedHtml = computed(() => {
 
 <template>
   <div class="w-full">
+    <!-- eslint-disable vue/no-v-html -->
     <div
       v-if="renderedHtml"
       v-viewer
       class="prose dark:prose-invert max-w-none text-sm break-words [&_img]:cursor-zoom-in [&_img]:rounded-lg [&_img]:max-h-96 [&_img]:w-auto [&_img]:object-contain [&_img]:shadow-sm hover:[&_img]:opacity-90 transition-opacity"
       v-html="renderedHtml"
     />
+    <!-- eslint-enable vue/no-v-html -->
     <div
       v-else
       class="text-sm text-muted italic py-1"

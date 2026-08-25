@@ -1,16 +1,23 @@
 import { eq, inArray, lt, and, isNotNull } from 'drizzle-orm'
-import { academicYears, lecturers, subjects, subjectLecturers, events, users } from '../db/schema'
+import {
+  academicYears,
+  lecturers,
+  subjects,
+  subjectLecturers,
+  events,
+  users,
+  type AcademicYearInsert,
+  type LecturerInsert,
+  type SubjectInsert,
+  type EventInsert
+} from '../db/schema'
 import type {
   AcademicYearSelect,
-  AcademicYearInsert,
   LecturerSelect,
-  LecturerInsert,
-  SubjectInsert,
   SubjectWithLecturers,
   EventSelect,
-  EventInsert,
   EventWithSubject
-} from '../types'
+} from '#shared/types'
 
 export class AcademicYearRepository {
   async findAll(): Promise<AcademicYearSelect[]> {
@@ -148,7 +155,7 @@ export class EventRepository {
       usersMap = new Map(matchedUsers.map(u => [u.id, u]))
     }
 
-    return allEvs.map(ev => {
+    return allEvs.map((ev) => {
       const author = ev.authorId ? (usersMap.get(ev.authorId) || null) : null
       return {
         ...ev,
@@ -210,7 +217,7 @@ export class SubjectRepository {
     const allUsers = await db.select({ id: users.id, name: users.name, username: users.username }).from(users).all()
     const usersMap = new Map(allUsers.map(u => [u.id, u]))
 
-    const eventsWithAuthors = activeEvents.map(ev => {
+    const eventsWithAuthors = activeEvents.map((ev) => {
       const author = ev.authorId ? (usersMap.get(ev.authorId) || null) : null
       return {
         ...ev,
@@ -227,7 +234,7 @@ export class SubjectRepository {
       eventsBySubjectMap.get(ev.subjectId)!.push(ev)
     }
 
-    return allSubjects.map(sub => {
+    return allSubjects.map((sub) => {
       const lecturerIds = relsMap.get(sub.id) || []
       const lecturerList = lecturerIds
         .map(id => lecturersMap.get(id))
@@ -268,7 +275,7 @@ export class SubjectRepository {
       endDate: events.endDate,
       createdAt: events.createdAt
     }).from(events).where(eq(events.subjectId, sub.id)).all()
-    
+
     const authorIds = [...new Set(subjectEvents.map(ev => ev.authorId).filter((id): id is number => id !== null))]
     let usersMap = new Map<number, { id: number, name: string | null, username: string }>()
     if (authorIds.length > 0) {

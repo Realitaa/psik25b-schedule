@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs'
+import type { LoginDTO, UserSessionPayload } from '#shared/types'
 import { userRepository, type UserRepository } from '../repositories/user.repository'
 import { UnauthorizedException } from '../utils/exceptions'
-import type { LoginDTO, UserSessionPayload } from '../types'
 
 export class AuthService {
   constructor(private userRepo: UserRepository = userRepository) {}

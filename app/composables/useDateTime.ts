@@ -1,30 +1,31 @@
-export const DAYS_INDONESIAN = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'] as const
-export const DAYS_LIST: string[] = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat']
+import {
+  DAYS_INDONESIAN,
+  DAYS_LIST,
+  DAY_ORDER_MAP,
+  DAY_INDEX_MAP,
+  formatIndonesianDate,
+  formatIndonesianDateTime,
+  formatEventEndDate,
+  formatYMDDate,
+  timeToMinutes,
+  calculateNextScheduleOccurrence,
+  sortSubjectsBySchedule,
+  classifySubjectStatus
+} from '#shared/utils/date'
 
-export function formatIndonesianDate(date?: Date | string | null): string {
-  if (!date) return ''
-  const d = typeof date === 'string' ? new Date(date) : date
-  if (isNaN(d.getTime())) return ''
-  return new Intl.DateTimeFormat('id-ID', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  }).format(d)
-}
-
-export function formatYMDDate(date?: Date | null): string {
-  const d = date || new Date()
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const dayNum = String(d.getDate()).padStart(2, '0')
-  return `${year}-${month}-${dayNum}`
-}
-
-export function timeToMinutes(timeStr?: string | null): number {
-  if (!timeStr) return 0
-  const [h, m] = timeStr.split(':').map(Number)
-  return (h || 0) * 60 + (m || 0)
+export {
+  DAYS_INDONESIAN,
+  DAYS_LIST,
+  DAY_ORDER_MAP,
+  DAY_INDEX_MAP,
+  formatIndonesianDate,
+  formatIndonesianDateTime,
+  formatEventEndDate,
+  formatYMDDate,
+  timeToMinutes,
+  calculateNextScheduleOccurrence,
+  sortSubjectsBySchedule,
+  classifySubjectStatus
 }
 
 export function useDateTime() {
@@ -51,8 +52,13 @@ export function useDateTime() {
     currentMinutes,
     todayFormatted,
     formatIndonesianDate,
+    formatIndonesianDateTime,
+    formatEventEndDate,
     formatYMDDate,
     timeToMinutes,
+    calculateNextScheduleOccurrence,
+    sortSubjectsBySchedule,
+    classifySubjectStatus,
     DAYS_INDONESIAN,
     DAYS_LIST
   }

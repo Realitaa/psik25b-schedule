@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import { CalendarDate } from '@internationalized/date'
-import { useDayStatus } from '~/composables/useDayStatus'
 import type {
-  AcademicYearSelect,
+  AcademicYearsResponse,
   LecturerSelect,
   SubjectWithLecturers,
-  EventWithSubject
+  EventWithSubject,
+  EventSelect
 } from '#shared/types'
+import {
+  DAYS_LIST,
+  calculateNextScheduleOccurrence,
+  formatEventEndDate
+} from '#shared/utils/date'
+import { useDayStatus } from '~/composables/useDayStatus'
+import { getApiErrorMessage } from '~/utils/error'
 
 definePageMeta({
   middleware: 'auth'
@@ -17,7 +24,7 @@ const toast = useToast()
 const { dayStatus, loading: dayStatusLoading, checkDayStatus } = useDayStatus()
 
 // State Data
-const academicYearsData = ref<{ years: AcademicYearSelect[], activeYearId: number | null }>({ years: [], activeYearId: null })
+const academicYearsData = ref<AcademicYearsResponse>({ years: [], activeYearId: null })
 const lecturers = ref<LecturerSelect[]>([])
 const subjects = ref<SubjectWithLecturers[]>([])
 const events = ref<EventWithSubject[]>([])
@@ -79,14 +86,12 @@ const eventForm = reactive({
 const selectedCalendarDate = shallowRef<CalendarDate | undefined>()
 const selectedTime = ref('10:30')
 
-const daysList = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
-
 // Fetch All Data
 async function fetchData() {
   loadingData.value = true
   try {
     const [yearsRes, lecturersRes, subjectsRes, eventsRes] = await Promise.all([
-      $fetch<{ years: AcademicYearSelect[], activeYearId: number | null }>('/api/academic-years'),
+      $fetch<AcademicYearsResponse>('/api/academic-years'),
       $fetch<LecturerSelect[]>('/api/lecturers'),
       $fetch<SubjectWithLecturers[]>('/api/subjects'),
       $fetch<EventWithSubject[]>('/api/events')
@@ -97,8 +102,11 @@ async function fetchData() {
     subjects.value = subjectsRes
     events.value = eventsRes
   } catch (err: unknown) {
-    const e = err as { data?: { statusMessage?: string } }
-    toast.add({ title: 'Gagal Memuat Data', description: e.data?.statusMessage || 'Terjadi kesalahan', color: 'error' })
+    toast.add({
+      title: 'Gagal Memuat Data',
+      description: getApiErrorMessage(err),
+      color: 'error'
+    })
   } finally {
     loadingData.value = false
   }
@@ -147,8 +155,11 @@ async function onActiveYearChange(val: string) {
     toast.add({ title: 'Tahun Ajaran Aktif Diperbarui', color: 'success' })
     await fetchData()
   } catch (err: unknown) {
-    const e = err as { data?: { statusMessage?: string } }
-    toast.add({ title: 'Gagal Mengubah Tahun Ajaran', description: e.data?.statusMessage, color: 'error' })
+    toast.add({
+      title: 'Gagal Mengubah Tahun Ajaran',
+      description: getApiErrorMessage(err),
+      color: 'error'
+    })
   } finally {
     savingActiveYear.value = false
   }
@@ -174,8 +185,11 @@ async function submitYearForm() {
     showYearModal.value = false
     await fetchData()
   } catch (err: unknown) {
-    const e = err as { data?: { statusMessage?: string } }
-    toast.add({ title: 'Gagal Menyimpan', description: e.data?.statusMessage, color: 'error' })
+    toast.add({
+      title: 'Gagal Menyimpan',
+      description: getApiErrorMessage(err),
+      color: 'error'
+    })
   } finally {
     submittingForm.value = false
   }
@@ -220,8 +234,11 @@ async function submitLecturerForm() {
     showLecturerModal.value = false
     await fetchData()
   } catch (err: unknown) {
-    const e = err as { data?: { statusMessage?: string } }
-    toast.add({ title: 'Gagal Menyimpan Dosen', description: e.data?.statusMessage, color: 'error' })
+    toast.add({
+      title: 'Gagal Menyimpan Dosen',
+      description: getApiErrorMessage(err),
+      color: 'error'
+    })
   } finally {
     submittingForm.value = false
   }
@@ -258,10 +275,9 @@ async function confirmDelete() {
     showDeleteConfirmModal.value = false
     await fetchData()
   } catch (err: unknown) {
-    const e = err as { data?: { statusMessage?: string } }
     toast.add({
       title: `Gagal Menghapus ${deleteType.value === 'lecturer' ? 'Dosen' : deleteType.value === 'subject' ? 'Mata Kuliah' : 'Event'}`,
-      description: e.data?.statusMessage,
+      description: getApiErrorMessage(err),
       color: 'error'
     })
   } finally {
@@ -334,52 +350,30 @@ async function submitSubjectForm() {
     showSubjectModal.value = false
     await fetchData()
   } catch (err: unknown) {
-    const e = err as { data?: { statusMessage?: string } }
-    toast.add({ title: 'Gagal Menyimpan Mata Kuliah', description: e.data?.statusMessage, color: 'error' })
+    toast.add({
+      title: 'Gagal Menyimpan Mata Kuliah',
+      description: getApiErrorMessage(err),
+      color: 'error'
+    })
   } finally {
     submittingForm.value = false
   }
 }
 
 // Handlers for Event Modal & Tiptap Editor
-function calculateNextSubjectEndTime(subjectId: number | null) {
+function getSubjectNextExpiryIso(subjectId?: number | null): string {
   if (!subjectId) return ''
   const sub = subjects.value.find(s => s.id === subjectId)
   if (!sub || !sub.day || !sub.timeEnd) return ''
-
-  const dayIndexMap: Record<string, number> = {
-    Minggu: 0,
-    Senin: 1,
-    Selasa: 2,
-    Rabu: 3,
-    Kamis: 4,
-    Jumat: 5,
-    Sabtu: 6
-  }
-
-  const targetDay = dayIndexMap[sub.day]
-  if (targetDay === undefined) return ''
-
-  const now = new Date()
-  const currentDay = now.getDay()
-  let daysUntil = (targetDay - currentDay + 7) % 7
-
-  const [hours, minutes] = sub.timeEnd.split(':').map(Number)
-  const targetDate = new Date(now)
-  targetDate.setDate(now.getDate() + daysUntil)
-  targetDate.setHours(hours || 0, minutes || 0, 0, 0)
-
-  // If today and time already passed, set for next week
-  if (daysUntil === 0 && targetDate.getTime() <= now.getTime()) {
-    targetDate.setDate(targetDate.getDate() + 7)
-  }
-
-  const year = targetDate.getFullYear()
-  const month = String(targetDate.getMonth() + 1).padStart(2, '0')
-  const date = String(targetDate.getDate()).padStart(2, '0')
-  const h = String(targetDate.getHours()).padStart(2, '0')
-  const m = String(targetDate.getMinutes()).padStart(2, '0')
-  return `${year}-${month}-${date}T${h}:${m}`
+  const iso = calculateNextScheduleOccurrence(sub.day, sub.timeEnd)
+  if (!iso) return ''
+  const d = new Date(iso)
+  const y = String(d.getFullYear()).padStart(4, '0')
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const h = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  return `${y}-${m}-${day}T${h}:${min}`
 }
 
 function setCalendarFromIsoString(isoStr?: string | null) {
@@ -438,7 +432,7 @@ function openAddEventModal() {
   eventForm.subjectId = subjects.value[0]?.id || undefined
   eventForm.title = ''
   eventForm.description = ''
-  const nextIso = calculateNextSubjectEndTime(eventForm.subjectId || null)
+  const nextIso = getSubjectNextExpiryIso(eventForm.subjectId || null)
   setCalendarFromIsoString(nextIso)
   showEventModal.value = true
 }
@@ -499,26 +493,13 @@ async function submitEventForm() {
     showEventModal.value = false
     await fetchData()
   } catch (err: unknown) {
-    const e = err as { data?: { statusMessage?: string } }
-    toast.add({ title: 'Gagal Menyimpan Event', description: e.data?.statusMessage, color: 'error' })
+    toast.add({
+      title: 'Gagal Menyimpan Event',
+      description: getApiErrorMessage(err),
+      color: 'error'
+    })
   } finally {
     submittingForm.value = false
-  }
-}
-
-function formatEventEndDate(dateStr?: string | null) {
-  if (!dateStr) return 'Tanpa batas waktu'
-  try {
-    const d = new Date(dateStr)
-    return d.toLocaleString('id-ID', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  } catch {
-    return dateStr
   }
 }
 
@@ -695,10 +676,18 @@ const eventColumns = [
               variant="subtle"
               size="sm"
             >
-              <UIcon name="i-lucide-clock" class="size-3 mr-1" />
-              {{ formatEventEndDate(row.original.endDate) }}
+              <UIcon
+                name="i-lucide-clock"
+                class="size-3 mr-1"
+              />
+              {{ formatEventEndDate(row.original.endDate, 'Tanpa batas waktu') }}
             </UBadge>
-            <span v-else class="text-muted italic">Tanpa batas waktu</span>
+            <span
+              v-else
+              class="text-muted italic"
+            >
+              Tanpa batas waktu
+            </span>
           </div>
         </template>
 
@@ -790,7 +779,10 @@ const eventColumns = [
               variant="subtle"
               size="sm"
             >
-              <UIcon name="i-lucide-video" class="size-3.5 mr-1" />
+              <UIcon
+                name="i-lucide-video"
+                class="size-3.5 mr-1"
+              />
               Daring
             </UBadge>
             <template v-else>
@@ -1056,7 +1048,7 @@ const eventColumns = [
           <UFormField label="Hari">
             <USelect
               v-model="subjectForm.day"
-              :items="daysList"
+              :items="DAYS_LIST"
               class="w-full"
             />
           </UFormField>
@@ -1097,7 +1089,10 @@ const eventColumns = [
         </UFormField>
 
         <!-- Tampilkan Gedung, Lantai, Ruangan hanya saat LURING -->
-        <div v-if="!subjectForm.isOnline" class="grid grid-cols-3 gap-3 p-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800">
+        <div
+          v-if="!subjectForm.isOnline"
+          class="grid grid-cols-3 gap-3 p-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800"
+        >
           <UFormField label="Gedung">
             <UInput
               v-model="subjectForm.building"
@@ -1121,8 +1116,14 @@ const eventColumns = [
           </UFormField>
         </div>
 
-        <div v-else class="p-3 bg-info-50/20 text-info rounded-xl border border-info/20 text-xs flex items-center gap-2">
-          <UIcon name="i-lucide-video" class="size-4 shrink-0" />
+        <div
+          v-else
+          class="p-3 bg-info-50/20 text-info rounded-xl border border-info/20 text-xs flex items-center gap-2"
+        >
+          <UIcon
+            name="i-lucide-video"
+            class="size-4 shrink-0"
+          />
           <span>Perkuliahan diselenggarakan secara Daring (Online). Tidak perlu mengisi nomor ruangan.</span>
         </div>
 
@@ -1173,7 +1174,7 @@ const eventColumns = [
             class="w-full"
             @update:model-value="(val) => {
               if (!editingEventId) {
-                const targetIso = calculateNextSubjectEndTime(val || null)
+                const targetIso = getSubjectNextExpiryIso(val || null)
                 setCalendarFromIsoString(targetIso)
               }
             }"
@@ -1233,7 +1234,7 @@ const eventColumns = [
                 variant="subtle"
                 size="xs"
                 @click="() => {
-                  const targetIso = calculateNextSubjectEndTime(eventForm.subjectId || null)
+                  const targetIso = getSubjectNextExpiryIso(eventForm.subjectId || null)
                   setCalendarFromIsoString(targetIso)
                 }"
               />

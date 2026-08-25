@@ -1,20 +1,24 @@
+import type {
+  AcademicYearSelect,
+  CreateAcademicYearDTO,
+  LecturerSelect,
+  CreateLecturerDTO,
+  UpdateLecturerDTO,
+  SubjectWithLecturers,
+  CreateSubjectDTO,
+  UpdateSubjectDTO,
+  EventSelect,
+  EventWithSubject,
+  CreateEventDTO,
+  UpdateEventDTO
+} from '#shared/types'
+import { calculateNextScheduleOccurrence } from '#shared/utils/date'
 import {
   academicYearRepository,
   lecturerRepository,
   subjectRepository,
   eventRepository
 } from '../repositories/schedule.repository'
-import type {
-  AcademicYearSelect,
-  CreateAcademicYearDTO,
-  LecturerSelect,
-  CreateLecturerDTO,
-  SubjectWithLecturers,
-  CreateSubjectDTO,
-  EventSelect,
-  EventWithSubject,
-  CreateEventDTO
-} from '../types'
 import { ConflictException, NotFoundException } from '../utils/exceptions'
 
 export class ScheduleService {
@@ -63,7 +67,7 @@ export class ScheduleService {
     return await lecturerRepository.create(dto)
   }
 
-  async updateLecturer(id: number, dto: Partial<CreateLecturerDTO>): Promise<LecturerSelect> {
+  async updateLecturer(id: number, dto: UpdateLecturerDTO): Promise<LecturerSelect> {
     const lecturer = await lecturerRepository.findById(id)
     if (!lecturer) throw new NotFoundException('Dosen tidak ditemukan')
 
@@ -89,36 +93,6 @@ export class ScheduleService {
     return await subjectRepository.findAll()
   }
 
-  private calculateNextOccurrenceEndTime(day?: string | null, timeEnd?: string | null): string | null {
-    if (!day || !timeEnd) return null
-    const dayIndexMap: Record<string, number> = {
-      Minggu: 0,
-      Senin: 1,
-      Selasa: 2,
-      Rabu: 3,
-      Kamis: 4,
-      Jumat: 5,
-      Sabtu: 6
-    }
-    const targetDay = dayIndexMap[day]
-    if (targetDay === undefined) return null
-
-    const now = new Date()
-    const currentDay = now.getDay()
-    let daysUntil = (targetDay - currentDay + 7) % 7
-
-    const [hours, minutes] = timeEnd.split(':').map(Number)
-    const targetDate = new Date(now)
-    targetDate.setDate(now.getDate() + daysUntil)
-    targetDate.setHours(hours || 0, minutes || 0, 0, 0)
-
-    if (daysUntil === 0 && targetDate.getTime() <= now.getTime()) {
-      targetDate.setDate(targetDate.getDate() + 7)
-    }
-
-    return targetDate.toISOString()
-  }
-
   async createSubject(dto: CreateSubjectDTO): Promise<SubjectWithLecturers> {
     let lecturerIds: number[] = []
     if (dto.lecturerShortnames && dto.lecturerShortnames.length > 0) {
@@ -130,7 +104,7 @@ export class ScheduleService {
     const isReplacement = Boolean(dto.isReplacement)
     let endDate = dto.endDate || null
     if (isReplacement && !endDate) {
-      endDate = this.calculateNextOccurrenceEndTime(dto.day, dto.timeEnd)
+      endDate = calculateNextScheduleOccurrence(dto.day, dto.timeEnd)
     }
 
     return await subjectRepository.create({
@@ -148,7 +122,7 @@ export class ScheduleService {
     }, lecturerIds)
   }
 
-  async updateSubject(id: number, dto: Partial<CreateSubjectDTO>): Promise<SubjectWithLecturers> {
+  async updateSubject(id: number, dto: UpdateSubjectDTO): Promise<SubjectWithLecturers> {
     const subject = await subjectRepository.findById(id)
     if (!subject) throw new NotFoundException('Mata kuliah tidak ditemukan')
 
@@ -169,7 +143,7 @@ export class ScheduleService {
     let endDate = dto.endDate !== undefined ? dto.endDate : subject.endDate
 
     if (isReplacement && !endDate) {
-      endDate = this.calculateNextOccurrenceEndTime(day, timeEnd)
+      endDate = calculateNextScheduleOccurrence(day, timeEnd)
     } else if (!isReplacement) {
       endDate = null
     }
@@ -220,7 +194,7 @@ export class ScheduleService {
     })
   }
 
-  async updateEvent(id: number, dto: Partial<CreateEventDTO>): Promise<EventSelect> {
+  async updateEvent(id: number, dto: UpdateEventDTO): Promise<EventSelect> {
     const existing = await eventRepository.findById(id)
     if (!existing) throw new NotFoundException('Event tidak ditemukan')
 

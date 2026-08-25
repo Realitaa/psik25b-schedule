@@ -1,25 +1,14 @@
 import { z } from 'zod'
 import { scheduleService } from '../../services/schedule.service'
-import { AppException, ValidationException } from '../../utils/exceptions'
+import { defineApiHandler } from '../../utils/handler'
+import { validateBody } from '../../utils/request'
 
 const activeSchema = z.object({
   id: z.number().nullable()
 })
 
-export default defineEventHandler(async (event) => {
-  try {
-    const body = await readBody(event)
-    const parseResult = activeSchema.safeParse(body)
-    if (!parseResult.success) {
-      throw new ValidationException('ID tahun ajaran tidak valid')
-    }
-
-    await scheduleService.setActiveAcademicYear(parseResult.data.id)
-    return { success: true }
-  } catch (err: unknown) {
-    if (err instanceof AppException) {
-      throw createError({ statusCode: err.statusCode, statusMessage: err.message })
-    }
-    throw err
-  }
+export default defineApiHandler(async (event) => {
+  const body = await validateBody(event, activeSchema)
+  await scheduleService.setActiveAcademicYear(body.id)
+  return { success: true }
 })

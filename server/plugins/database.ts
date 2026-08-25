@@ -17,7 +17,7 @@ export default defineNitroPlugin((nitroApp) => {
 
     try {
       const cfEnv = event.context.cloudflare?.env as Record<string, string | undefined> | undefined
-      
+
       let userIndex = 0
       while (true) {
         const usernameKey = `USER${userIndex}_USERNAME`

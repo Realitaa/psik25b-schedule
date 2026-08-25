@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AuthFormField, FormSubmitEvent } from '@nuxt/ui'
+import { getApiErrorMessage } from '~/utils/error'
 
 definePageMeta({
   middleware: 'guest'
@@ -46,10 +47,9 @@ async function onSubmit(event: FormSubmitEvent<{ username?: string, password?: s
     })
     await router.push('/dashboard')
   } catch (err: unknown) {
-    const errorObj = err as { data?: { statusMessage?: string }, statusMessage?: string }
     toast.add({
       title: 'Gagal Login',
-      description: errorObj?.data?.statusMessage || errorObj?.statusMessage || 'Username atau password salah',
+      description: getApiErrorMessage(err, 'Username atau password salah'),
       color: 'error'
     })
   } finally {

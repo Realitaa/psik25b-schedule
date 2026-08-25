@@ -1,4 +1,5 @@
 import type { HolidayItem, DayStatusResult } from '#shared/types'
+import { formatYMDDate } from '#shared/utils/date'
 
 export function useDayStatus() {
   const dayStatus = ref<DayStatusResult>({

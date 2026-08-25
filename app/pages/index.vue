@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import type { AcademicYearSelect, LecturerSelect, SubjectWithLecturers } from '#shared/types'
+import type {
+  AcademicYearsResponse,
+  LecturerSelect,
+  SubjectWithLecturers,
+  EventSelect
+} from '#shared/types'
+import { sortSubjectsBySchedule, classifySubjectStatus } from '#shared/utils/date'
 
 // Fetch public schedule & lecturer data in parallel
 const { data } = await useAsyncData('public-schedule-data', async () => {
   const [academicYearsData, lecturers, subjects] = await Promise.all([
-    $fetch<{ years: AcademicYearSelect[], activeYearId: number | null }>('/api/academic-years'),
+    $fetch<AcademicYearsResponse>('/api/academic-years'),
     $fetch<LecturerSelect[]>('/api/lecturers'),
     $fetch<SubjectWithLecturers[]>('/api/subjects')
   ])
@@ -17,14 +23,14 @@ const { data } = await useAsyncData('public-schedule-data', async () => {
 
 // Day Status & Date/Time & WhatsApp composables
 const { dayStatus } = useDayStatus()
-const { todayDayName, currentMinutes, todayFormatted, timeToMinutes } = useDateTime()
+const { todayDayName, currentMinutes, todayFormatted } = useDateTime()
 const { formatWhatsAppLink } = useWhatsApp()
 
 // Event Detail Modal State
-const selectedEvent = ref<{ event: any, subject: SubjectWithLecturers } | null>(null)
+const selectedEvent = ref<{ event: EventSelect, subject: SubjectWithLecturers } | null>(null)
 const isEventModalOpen = ref(false)
 
-function openEventModal(event: any, subject: SubjectWithLecturers) {
+function openEventModal(event: EventSelect, subject: SubjectWithLecturers) {
   selectedEvent.value = { event, subject }
   isEventModalOpen.value = true
 }
@@ -41,22 +47,18 @@ const todaySubjects = computed(() => {
 
   // Map activity status (current/incoming/passed)
   const processed = filtered.map((s) => {
-    const startMin = s.timeStart ? timeToMinutes(s.timeStart) : 0
-    const endMin = s.timeEnd ? timeToMinutes(s.timeEnd) : startMin + 90
-
-    let statusType: 'current' | 'incoming' = 'incoming'
-    if (currentMinutes.value >= startMin && currentMinutes.value <= endMin) {
-      statusType = 'current'
-    } else if (currentMinutes.value < startMin) {
-      statusType = 'incoming'
-    }
+    const { statusType, isPassed, startMin, endMin } = classifySubjectStatus(
+      s.timeStart,
+      s.timeEnd,
+      currentMinutes.value
+    )
 
     return {
       subject: s,
       startMin,
       endMin,
       statusType,
-      isPassed: currentMinutes.value > endMin
+      isPassed
     }
   })
 
@@ -73,30 +75,10 @@ const activeYear = computed(() => {
   return data.value.academicYearsData.years.find(y => y.id === activeId) || null
 })
 
-const dayOrderMap: Record<string, number> = {
-  Senin: 1,
-  Selasa: 2,
-  Rabu: 3,
-  Kamis: 4,
-  Jumat: 5,
-  Sabtu: 6,
-  Minggu: 7
-}
-
 const activeSubjects = computed(() => {
   if (!data.value?.subjects || !activeYear.value) return []
   const filtered = data.value.subjects.filter(s => s.academicYearId === activeYear.value?.id)
-
-  return filtered.sort((a, b) => {
-    const dayA = dayOrderMap[a.day || ''] || 99
-    const dayB = dayOrderMap[b.day || ''] || 99
-
-    if (dayA !== dayB) {
-      return dayA - dayB
-    }
-
-    return timeToMinutes(a.timeStart) - timeToMinutes(b.timeStart)
-  })
+  return sortSubjectsBySchedule(filtered)
 })
 
 // Columns definitions for Tables

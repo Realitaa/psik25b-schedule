@@ -1,6 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { users } from '../db/schema'
-import type { UserSelect } from '../types'
+import { users, type UserSelect } from '../db/schema'
 
 export class UserRepository {
   async findByUsername(username: string): Promise<UserSelect | undefined> {

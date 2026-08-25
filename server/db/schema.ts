@@ -55,7 +55,20 @@ export const events = sqliteTable('events', {
   subjectId: integer('subject_id').notNull().references(() => subjects.id, { onDelete: 'cascade' }),
   authorId: integer('author_id').references(() => users.id, { onDelete: 'set null' }),
   title: text('title').notNull(),
-  description: text('description'), // TipTap JSON string
+  description: text('description'), // TipTap JSON or HTML string
   endDate: text('end_date'), // ISO timestamp string or null
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
 })
+
+// Database Inferred Types
+export type UserSelect = typeof users.$inferSelect
+export type UserInsert = typeof users.$inferInsert
+
+export type AcademicYearInsert = typeof academicYears.$inferInsert
+
+export type LecturerInsert = typeof lecturers.$inferInsert
+
+export type SubjectInsert = typeof subjects.$inferInsert
+export type SubjectLecturerSelect = typeof subjectLecturers.$inferSelect
+
+export type EventInsert = typeof events.$inferInsert
