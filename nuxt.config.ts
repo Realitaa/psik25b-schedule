@@ -51,6 +51,15 @@ export default defineNuxtConfig({
     }
   },
 
+  icon: {
+    serverBundle: 'local',
+    clientBundle: {
+      scan: true,
+      sizeLimitKb: 512
+    },
+    provider: 'iconify'
+  },
+
   pwa: {
     registerType: 'autoUpdate',
     manifest: {
@@ -87,26 +96,13 @@ export default defineNuxtConfig({
       globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2}'],
       runtimeCaching: [
         {
-          urlPattern: /^\/api\/public\/.*/i,
-          handler: 'NetworkFirst',
-          options: {
-            cacheName: 'psik25b-public-bundle-cache',
-            expiration: {
-              maxEntries: 10,
-              maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
-            },
-            cacheableResponse: {
-              statuses: [0, 200]
-            }
-          }
-        },
-        {
-          urlPattern: /^\/api\/(schedules|academic-years|lecturers|holidays)/i,
+          urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
           handler: 'NetworkFirst',
           options: {
             cacheName: 'psik25b-api-cache',
+            networkTimeoutSeconds: 3,
             expiration: {
-              maxEntries: 30,
+              maxEntries: 50,
               maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
             },
             cacheableResponse: {

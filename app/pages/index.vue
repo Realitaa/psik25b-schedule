@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import type {
-  PublicScheduleBundle,
   ScheduleWithSubject,
   EventSelect
 } from '#shared/types'
 import { sortSchedulesByDayAndTime, classifySubjectStatus } from '#shared/utils/date'
 
-// Fetch consolidated public schedule bundle in 1 request (optimized for PWA offline caching)
-const { data: bundle } = await useAsyncData('public-schedule-bundle', () =>
-  $fetch<PublicScheduleBundle>('/api/public/schedule-bundle')
-)
+// Fetch consolidated public schedule bundle with offline fallback & caching
+const { bundle } = await usePublicSchedule()
 
 // Day Status & Date/Time composables
 const { dayStatus } = useDayStatus()
