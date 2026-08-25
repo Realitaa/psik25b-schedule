@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { CalendarDate } from '@internationalized/date'
-import type { EventWithSubject, EventSelect, CreateEventDTO } from '#shared/types'
+import type { EventSelect, CreateEventDTO, EventPresetSelect, ScheduleWithSubject } from '#shared/types'
 import { renderTiptapToHtml } from '~/utils/tiptap'
 
 const props = defineProps<{
-  event?: EventWithSubject | null
-  subjectOptions: Array<{ label: string, value: number }>
-  getSubjectNextExpiryIso: (subjectId?: number | null) => string
+  event?: EventSelect | null
+  scheduleOptions: Array<{ label: string, value: number, schedule: ScheduleWithSubject }>
+  presets: EventPresetSelect[]
+  getScheduleNextExpiryIso: (scheduleId?: number | null) => string
   loading?: boolean
 }>()
 
@@ -20,7 +21,11 @@ const editingId = computed(() => props.event?.id || null)
 const isEditingEventLoading = ref(false)
 
 const form = reactive({
-  subjectId: undefined as number | undefined,
+  scheduleId: undefined as number | undefined,
+  presetId: undefined as number | null | undefined,
+  type: 'Informasi',
+  color: '#3b82f6',
+  icon: 'i-lucide-info',
   title: '',
   description: '',
   endDate: ''
@@ -28,6 +33,42 @@ const form = reactive({
 
 const selectedCalendarDate = shallowRef<CalendarDate | undefined>()
 const selectedTime = ref('10:30')
+
+const availableIcons = [
+  'i-lucide-info',
+  'i-lucide-file-text',
+  'i-lucide-clipboard-check',
+  'i-lucide-bell',
+  'i-lucide-calendar',
+  'i-lucide-megaphone',
+  'i-lucide-bookmark',
+  'i-lucide-book-open',
+  'i-lucide-code-2',
+  'i-lucide-presentation'
+]
+
+const colorOptions = [
+  { label: 'Biru (Info)', value: '#3b82f6' },
+  { label: 'Kuning / Oranye (Tugas)', value: '#f59e0b' },
+  { label: 'Merah (Ujian / Deadline)', value: '#ef4444' },
+  { label: 'Hijau (Materi)', value: '#10b981' },
+  { label: 'Ungu (Khusus)', value: '#8b5cf6' },
+  { label: 'Teal', value: '#14b8a6' }
+]
+
+function onPresetSelected(presetIdVal?: number | null) {
+  if (!presetIdVal) {
+    form.presetId = null
+    return
+  }
+  const found = props.presets.find(p => p.id === presetIdVal)
+  if (found) {
+    form.presetId = found.id
+    form.type = found.name
+    form.color = found.color
+    form.icon = found.icon
+  }
+}
 
 function setCalendarFromIsoString(isoStr?: string | null) {
   if (!isoStr) {
@@ -38,13 +79,15 @@ function setCalendarFromIsoString(isoStr?: string | null) {
   }
   try {
     const d = new Date(isoStr)
-    selectedCalendarDate.value = new CalendarDate(d.getFullYear(), d.getMonth() + 1, d.getDate())
-    const h = String(d.getHours()).padStart(2, '0')
-    const min = String(d.getMinutes()).padStart(2, '0')
+    const wibStr = d.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })
+    const wibDate = new Date(wibStr)
+    selectedCalendarDate.value = new CalendarDate(wibDate.getFullYear(), wibDate.getMonth() + 1, wibDate.getDate())
+    const h = String(wibDate.getHours()).padStart(2, '0')
+    const min = String(wibDate.getMinutes()).padStart(2, '0')
     selectedTime.value = `${h}:${min}`
-    const yStr = String(d.getFullYear()).padStart(4, '0')
-    const mStr = String(d.getMonth() + 1).padStart(2, '0')
-    const dStr = String(d.getDate()).padStart(2, '0')
+    const yStr = String(wibDate.getFullYear()).padStart(4, '0')
+    const mStr = String(wibDate.getMonth() + 1).padStart(2, '0')
+    const dStr = String(wibDate.getDate()).padStart(2, '0')
     form.endDate = `${yStr}-${mStr}-${dStr}T${h}:${min}`
   } catch {
     selectedCalendarDate.value = undefined
@@ -82,7 +125,11 @@ const formattedCalendarEndDate = computed(() => {
 
 watch([open, () => props.event], async ([isOpen, ev]) => {
   if (isOpen && ev) {
-    form.subjectId = ev.subjectId
+    form.scheduleId = ev.scheduleId
+    form.presetId = ev.presetId || null
+    form.type = ev.type || 'Informasi'
+    form.color = ev.color || '#3b82f6'
+    form.icon = ev.icon || 'i-lucide-info'
     form.title = ev.title
     form.description = ''
     setCalendarFromIsoString(ev.endDate)
@@ -99,21 +146,37 @@ watch([open, () => props.event], async ([isOpen, ev]) => {
       isEditingEventLoading.value = false
     }
   } else if (isOpen) {
-    form.subjectId = props.subjectOptions[0]?.value || undefined
+    form.scheduleId = props.scheduleOptions[0]?.value || undefined
+    const defaultPreset = props.presets[0]
+    if (defaultPreset) {
+      form.presetId = defaultPreset.id
+      form.type = defaultPreset.name
+      form.color = defaultPreset.color
+      form.icon = defaultPreset.icon
+    } else {
+      form.presetId = null
+      form.type = 'Informasi'
+      form.color = '#3b82f6'
+      form.icon = 'i-lucide-info'
+    }
     form.title = ''
     form.description = ''
-    const targetIso = props.getSubjectNextExpiryIso(form.subjectId || null)
+    const targetIso = props.getScheduleNextExpiryIso(form.scheduleId || null)
     setCalendarFromIsoString(targetIso)
   }
 })
 
 function handleSubmit() {
-  if (!form.subjectId) return
+  if (!form.scheduleId) return
   emit('submit', {
-    subjectId: form.subjectId,
+    scheduleId: form.scheduleId,
+    presetId: form.presetId || null,
+    type: form.type,
+    color: form.color,
+    icon: form.icon,
     title: form.title,
     description: form.description || null,
-    endDate: form.endDate ? new Date(form.endDate).toISOString() : null
+    endDate: form.endDate ? new Date(`${form.endDate}:00+07:00`).toISOString() : null
   }, editingId.value)
 }
 </script>
@@ -121,42 +184,108 @@ function handleSubmit() {
 <template>
   <FormModal
     v-model:open="open"
-    :title="editingId === null ? 'Tambah Event Perkuliahan' : 'Edit Event Perkuliahan'"
-    description="Buat pengumuman, kuis, atau tugas khusus yang terhubung ke mata kuliah"
+    :title="editingId === null ? 'Tambah Event / Pengumuman' : 'Edit Event / Pengumuman'"
+    description="Buat pengumuman, kuis, atau tugas khusus yang terhubung ke jadwal kuliah"
     :loading="loading"
     @submit="handleSubmit"
   >
     <div class="space-y-4">
       <UFormField
-        label="Mata Kuliah Terkait"
+        label="Jadwal Kuliah Terkait"
         required
       >
         <USelect
-          v-model="form.subjectId"
-          :items="subjectOptions"
+          v-model="form.scheduleId"
+          :items="scheduleOptions"
           value-attribute="value"
           option-attribute="label"
-          placeholder="Pilih mata kuliah..."
+          placeholder="Pilih jadwal perkuliahan..."
           class="w-full"
           @update:model-value="(val) => {
             if (!editingId) {
-              const targetIso = getSubjectNextExpiryIso(val || null)
+              const targetIso = getScheduleNextExpiryIso(val || null)
               setCalendarFromIsoString(targetIso)
             }
           }"
         />
       </UFormField>
 
-      <UFormField
-        label="Judul Event"
-        required
-      >
-        <UInput
-          v-model="form.title"
-          placeholder="cth. Kuis 1 Materi OOP / Pengumpulan Tugas Kelompok"
-          class="w-full"
-        />
-      </UFormField>
+      <!-- Preset & Styling Row -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800">
+        <UFormField label="Preset Event (Cepat)">
+          <USelect
+            v-model="form.presetId"
+            :items="[
+              { label: 'Kustom / Tanpa Preset', value: null },
+              ...presets.map(p => ({ label: p.name, value: p.id }))
+            ]"
+            value-attribute="value"
+            option-attribute="label"
+            class="w-full"
+            @update:model-value="onPresetSelected"
+          />
+        </UFormField>
+
+        <UFormField label="Warna Badge">
+          <div class="flex items-center gap-2">
+            <input
+              v-model="form.color"
+              type="color"
+              class="size-8 rounded border border-neutral-300 dark:border-neutral-700 cursor-pointer bg-transparent"
+            >
+            <USelect
+              v-model="form.color"
+              :items="colorOptions"
+              value-attribute="value"
+              option-attribute="label"
+              class="w-full"
+            />
+          </div>
+        </UFormField>
+
+        <UFormField label="Ikon Badge">
+          <div class="flex items-center gap-2">
+            <div
+              class="size-8 rounded flex items-center justify-center border border-neutral-300 dark:border-neutral-700 shrink-0"
+              :style="{ color: form.color }"
+            >
+              <UIcon
+                :name="form.icon || 'i-lucide-bell'"
+                class="size-4"
+              />
+            </div>
+            <USelect
+              v-model="form.icon"
+              :items="availableIcons"
+              class="w-full"
+            />
+          </div>
+        </UFormField>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <UFormField
+          label="Label / Kategori"
+          required
+        >
+          <UInput
+            v-model="form.type"
+            placeholder="cth. Tugas / Ujian / Informasi"
+            class="w-full"
+          />
+        </UFormField>
+
+        <UFormField
+          label="Judul Event"
+          required
+        >
+          <UInput
+            v-model="form.title"
+            placeholder="cth. Kuis 1 Materi OOP"
+            class="w-full"
+          />
+        </UFormField>
+      </div>
 
       <UFormField
         label="Batas Waktu Event (Auto-Expiry)"
@@ -200,7 +329,7 @@ function handleSubmit() {
               variant="subtle"
               size="xs"
               @click="() => {
-                const targetIso = getSubjectNextExpiryIso(form.subjectId || null)
+                const targetIso = getScheduleNextExpiryIso(form.scheduleId || null)
                 setCalendarFromIsoString(targetIso)
               }"
             />

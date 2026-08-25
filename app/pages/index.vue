@@ -2,22 +2,22 @@
 import type {
   AcademicYearsResponse,
   LecturerSelect,
-  SubjectWithLecturers,
+  ScheduleWithSubject,
   EventSelect
 } from '#shared/types'
-import { sortSubjectsBySchedule, classifySubjectStatus } from '#shared/utils/date'
+import { sortSchedulesByDayAndTime, classifySubjectStatus } from '#shared/utils/date'
 
 // Fetch public schedule & lecturer data in parallel
 const { data } = await useAsyncData('public-schedule-data', async () => {
-  const [academicYearsData, lecturers, subjects] = await Promise.all([
+  const [academicYearsData, lecturers, schedules] = await Promise.all([
     $fetch<AcademicYearsResponse>('/api/academic-years'),
     $fetch<LecturerSelect[]>('/api/lecturers'),
-    $fetch<SubjectWithLecturers[]>('/api/subjects')
+    $fetch<ScheduleWithSubject[]>('/api/schedules')
   ])
   return {
     academicYearsData,
     lecturers,
-    subjects
+    schedules
   }
 })
 
@@ -26,11 +26,11 @@ const { dayStatus } = useDayStatus()
 const { todayDayName, currentMinutes, todayFormatted } = useDateTime()
 
 // Event Detail Modal State
-const selectedEvent = ref<{ event: EventSelect, subject: SubjectWithLecturers } | null>(null)
+const selectedEvent = ref<{ event: EventSelect, schedule: ScheduleWithSubject } | null>(null)
 const isEventModalOpen = ref(false)
 
-function openEventModal(event: EventSelect, subject: SubjectWithLecturers) {
-  selectedEvent.value = { event, subject }
+function openEventModal(event: EventSelect, schedule: ScheduleWithSubject) {
+  selectedEvent.value = { event, schedule }
   isEventModalOpen.value = true
 }
 
@@ -41,14 +41,16 @@ const activeYear = computed(() => {
   return data.value.academicYearsData.years.find(y => y.id === activeId) || null
 })
 
-// Filter and classify today's subjects
-const todaySubjects = computed(() => {
+// Filter and classify today's schedules
+const todaySchedules = computed(() => {
   const activeYearId = data.value?.academicYearsData?.activeYearId
-  if (!activeYearId || !data.value?.subjects) return []
+  if (!activeYearId || !data.value?.schedules) return []
 
-  // Filter by active academic year and today's day name
-  const filtered = data.value.subjects.filter(
-    s => s.academicYearId === activeYearId && s.day === todayDayName.value
+  // Filter by active academic year, today's day name, and active status (exclude skipped & ended)
+  const filtered = data.value.schedules.filter(
+    s => s.subject?.academicYearId === activeYearId
+      && s.day === todayDayName.value
+      && s.status === 'active'
   )
 
   // Map activity status (current/incoming/passed)
@@ -60,7 +62,7 @@ const todaySubjects = computed(() => {
     )
 
     return {
-      subject: s,
+      schedule: s,
       startMin,
       endMin,
       statusType,
@@ -74,11 +76,11 @@ const todaySubjects = computed(() => {
     .sort((a, b) => a.startMin - b.startMin)
 })
 
-// Active Academic Year Subjects
-const activeSubjects = computed(() => {
-  if (!data.value?.subjects || !activeYear.value) return []
-  const filtered = data.value.subjects.filter(s => s.academicYearId === activeYear.value?.id)
-  return sortSubjectsBySchedule(filtered)
+// Active Academic Year Schedules (all statuses for the table, sorted by schedule)
+const activeSchedules = computed(() => {
+  if (!data.value?.schedules || !activeYear.value) return []
+  const filtered = data.value.schedules.filter(s => s.subject?.academicYearId === activeYear.value?.id)
+  return sortSchedulesByDayAndTime(filtered)
 })
 </script>
 
@@ -92,14 +94,14 @@ const activeSubjects = computed(() => {
       <!-- Section: Jadwal Hari Ini -->
       <ScheduleTodaySection
         :day-status="dayStatus"
-        :today-subjects="todaySubjects"
+        :today-schedules="todaySchedules"
         :today-formatted="todayFormatted"
       />
     </div>
 
     <!-- Section: Jadwal Mata Kuliah -->
     <ScheduleSubjectsTable
-      :subjects="activeSubjects"
+      :schedules="activeSchedules"
       @open-event="openEventModal"
     />
 
@@ -109,7 +111,7 @@ const activeSubjects = computed(() => {
     <!-- Event Detail Modal -->
     <EventDetailModal
       v-model:open="isEventModalOpen"
-      :event="selectedEvent ? { ...selectedEvent.event, subject: selectedEvent.subject } : null"
+      :event="selectedEvent ? { ...selectedEvent.event, schedule: selectedEvent.schedule } : null"
     />
   </div>
 </template>

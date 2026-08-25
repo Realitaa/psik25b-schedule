@@ -1,6 +1,5 @@
 import type {
   EventSelect,
-  EventWithSubject,
   CreateEventDTO,
   UpdateEventDTO
 } from '#shared/types'
@@ -9,18 +8,18 @@ import {
   type EventRepository
 } from '../repositories/event.repository'
 import {
-  subjectRepository,
-  type SubjectRepository
-} from '../repositories/subject.repository'
+  scheduleRepository,
+  type ScheduleRepository
+} from '../repositories/schedule.repository'
 import { NotFoundException } from '../utils/exceptions'
 
 export class EventService {
   constructor(
     private readonly eventRepo: EventRepository = eventRepository,
-    private readonly subjectRepo: SubjectRepository = subjectRepository
+    private readonly scheduleRepo: ScheduleRepository = scheduleRepository
   ) {}
 
-  async getEvents(): Promise<EventWithSubject[]> {
+  async getEvents(): Promise<EventSelect[]> {
     return await this.eventRepo.findAll()
   }
 
@@ -31,14 +30,18 @@ export class EventService {
   }
 
   async createEvent(dto: CreateEventDTO): Promise<EventSelect> {
-    const subject = await this.subjectRepo.findById(dto.subjectId)
-    if (!subject) throw new NotFoundException('Mata kuliah tidak ditemukan')
+    const schedule = await this.scheduleRepo.findById(dto.scheduleId)
+    if (!schedule) throw new NotFoundException('Jadwal tidak ditemukan')
 
     return await this.eventRepo.create({
-      subjectId: dto.subjectId,
+      scheduleId: dto.scheduleId,
       authorId: dto.authorId || null,
+      presetId: dto.presetId || null,
       title: dto.title,
       description: dto.description || null,
+      type: dto.type || null,
+      color: dto.color || null,
+      icon: dto.icon || null,
       endDate: dto.endDate || null
     })
   }
@@ -47,15 +50,19 @@ export class EventService {
     const existing = await this.eventRepo.findById(id)
     if (!existing) throw new NotFoundException('Event tidak ditemukan')
 
-    if (dto.subjectId !== undefined) {
-      const subject = await this.subjectRepo.findById(dto.subjectId)
-      if (!subject) throw new NotFoundException('Mata kuliah tidak ditemukan')
+    if (dto.scheduleId !== undefined) {
+      const schedule = await this.scheduleRepo.findById(dto.scheduleId)
+      if (!schedule) throw new NotFoundException('Jadwal tidak ditemukan')
     }
 
     const updated = await this.eventRepo.update(id, {
-      ...(dto.subjectId !== undefined && { subjectId: dto.subjectId }),
+      ...(dto.scheduleId !== undefined && { scheduleId: dto.scheduleId }),
+      ...(dto.presetId !== undefined && { presetId: dto.presetId }),
       ...(dto.title !== undefined && { title: dto.title }),
       ...(dto.description !== undefined && { description: dto.description }),
+      ...(dto.type !== undefined && { type: dto.type }),
+      ...(dto.color !== undefined && { color: dto.color }),
+      ...(dto.icon !== undefined && { icon: dto.icon }),
       ...(dto.endDate !== undefined && { endDate: dto.endDate })
     })
 

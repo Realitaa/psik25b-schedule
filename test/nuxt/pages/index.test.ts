@@ -30,13 +30,15 @@ describe('IndexPage (Public Portal)', () => {
       }
     ])
 
-    registerEndpoint('/api/subjects', () => [
+    registerEndpoint('/api/schedules', () => [
       {
         id: 1,
-        academicYearId: 1,
-        name: 'Pemrograman Web Lanjut',
+        subjectId: 1,
+        type: 'regular' as const,
+        parentScheduleId: null,
+        status: 'active' as const,
+        skippedUntil: null,
         isOnline: false,
-        isReplacement: false,
         building: 'Gedung A',
         floor: '3',
         room: 'Lab 1',
@@ -45,16 +47,22 @@ describe('IndexPage (Public Portal)', () => {
         day: 'Senin',
         endDate: null,
         createdAt: null,
-        lecturers: [
-          {
-            id: 1,
-            name: 'Dr. Budi Santoso',
-            shortname: 'BS',
-            nip: '198501012010121001',
-            phone: '081234567890',
-            createdAt: null
-          }
-        ],
+        subject: {
+          id: 1,
+          academicYearId: 1,
+          name: 'Pemrograman Web Lanjut',
+          createdAt: null,
+          lecturers: [
+            {
+              id: 1,
+              name: 'Dr. Budi Santoso',
+              shortname: 'BS',
+              nip: '198501012010121001',
+              phone: '081234567890',
+              createdAt: null
+            }
+          ]
+        },
         events: []
       }
     ])

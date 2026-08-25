@@ -5,9 +5,13 @@ import { defineApiHandler } from '../../utils/handler'
 import { validateBody } from '../../utils/request'
 
 const createEventSchema = z.object({
-  subjectId: z.number().int({ message: 'ID mata kuliah wajib valid' }),
+  scheduleId: z.number().int({ message: 'ID jadwal perkuliahan wajib valid' }),
+  presetId: z.number().int().nullable().optional(),
   title: z.string().min(1, 'Judul event wajib diisi'),
   description: z.string().nullable().optional(),
+  type: z.string().nullable().optional(),
+  color: z.string().nullable().optional(),
+  icon: z.string().nullable().optional(),
   endDate: z.string().nullable().optional()
 })
 

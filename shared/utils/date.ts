@@ -27,6 +27,7 @@ export function formatIndonesianDate(date?: Date | string | number | null, optio
   if (Number.isNaN(d.getTime())) return ''
 
   const defaultOptions: Intl.DateTimeFormatOptions = {
+    timeZone: 'Asia/Jakarta',
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -42,13 +43,15 @@ export function formatIndonesianDateTime(date?: Date | string | number | null): 
   if (Number.isNaN(d.getTime())) return ''
 
   return d.toLocaleString('id-ID', {
+    timeZone: 'Asia/Jakarta',
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
-  }) + ' WIB'
+    minute: '2-digit',
+    hour12: false
+  }).replace(/\./g, ':') + ' WIB'
 }
 
 export function formatEventEndDate(dateStr?: string | null, fallback = 'Tanpa batas waktu (Permanen)'): string {
@@ -57,13 +60,15 @@ export function formatEventEndDate(dateStr?: string | null, fallback = 'Tanpa ba
     const d = new Date(dateStr)
     if (Number.isNaN(d.getTime())) return dateStr
     return d.toLocaleString('id-ID', {
+      timeZone: 'Asia/Jakarta',
       weekday: 'short',
       day: 'numeric',
       month: 'short',
       year: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
-    }) + ' WIB'
+      minute: '2-digit',
+      hour12: false
+    }).replace(/\./g, ':') + ' WIB'
   } catch {
     return dateStr
   }
@@ -93,23 +98,30 @@ export function calculateNextScheduleOccurrence(
   if (targetDay === undefined) return null
 
   const now = baseDate || new Date()
-  const currentDay = now.getDay()
+  const wibTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }))
+  const currentDay = wibTime.getDay()
   const daysUntil = (targetDay - currentDay + 7) % 7
 
-  const [hours, minutes] = timeEnd.split(':').map(Number)
-  const targetDate = new Date(now)
-  targetDate.setDate(now.getDate() + daysUntil)
-  targetDate.setHours(hours || 0, minutes || 0, 0, 0)
+  const [hours = 0, minutes = 0] = timeEnd.split(':').map(Number)
+  const targetDate = new Date(wibTime)
+  targetDate.setDate(wibTime.getDate() + daysUntil)
+  targetDate.setHours(hours, minutes, 0, 0)
 
-  if (daysUntil === 0 && targetDate.getTime() <= now.getTime()) {
+  if (daysUntil === 0 && targetDate.getTime() <= wibTime.getTime()) {
     targetDate.setDate(targetDate.getDate() + 7)
   }
 
-  return targetDate.toISOString()
+  const y = targetDate.getFullYear()
+  const m = String(targetDate.getMonth() + 1).padStart(2, '0')
+  const d = String(targetDate.getDate()).padStart(2, '0')
+  const h = String(hours).padStart(2, '0')
+  const min = String(minutes).padStart(2, '0')
+
+  return new Date(`${y}-${m}-${d}T${h}:${min}:00+07:00`).toISOString()
 }
 
-export function sortSubjectsBySchedule<T extends { day?: string | null, timeStart?: string | null }>(subjects: T[]): T[] {
-  return [...subjects].sort((a, b) => {
+export function sortSchedulesByDayAndTime<T extends { day?: string | null, timeStart?: string | null }>(schedulesList: T[]): T[] {
+  return [...schedulesList].sort((a, b) => {
     const dayA = DAY_ORDER_MAP[a.day || ''] || 99
     const dayB = DAY_ORDER_MAP[b.day || ''] || 99
 
@@ -120,6 +132,8 @@ export function sortSubjectsBySchedule<T extends { day?: string | null, timeStar
     return timeToMinutes(a.timeStart) - timeToMinutes(b.timeStart)
   })
 }
+
+export const sortSubjectsBySchedule = sortSchedulesByDayAndTime
 
 export function classifySubjectStatus(
   timeStart?: string | null,

@@ -3,11 +3,16 @@ import type {
   AcademicYearsResponse,
   LecturerSelect,
   SubjectWithLecturers,
-  EventWithSubject,
+  ScheduleWithSubject,
+  EventSelect,
+  EventPresetSelect,
   CreateAcademicYearDTO,
   CreateLecturerDTO,
   CreateSubjectDTO,
-  CreateEventDTO
+  CreateScheduleDTO,
+  CreateEventDTO,
+  CreateEventPresetDTO,
+  ScheduleActionDTO
 } from '#shared/types'
 import { calculateNextScheduleOccurrence } from '#shared/utils/date'
 import { useDayStatus } from '~/composables/useDayStatus'
@@ -25,7 +30,9 @@ const { dayStatus, loading: dayStatusLoading, checkDayStatus } = useDayStatus()
 const academicYearsData = ref<AcademicYearsResponse>({ years: [], activeYearId: null })
 const lecturers = ref<LecturerSelect[]>([])
 const subjects = ref<SubjectWithLecturers[]>([])
-const events = ref<EventWithSubject[]>([])
+const schedules = ref<ScheduleWithSubject[]>([])
+const events = ref<EventSelect[]>([])
+const eventPresets = ref<EventPresetSelect[]>([])
 const loadingData = ref(false)
 
 // Active Academic Year Selector State
@@ -36,18 +43,24 @@ const savingActiveYear = ref(false)
 const showYearModal = ref(false)
 const showLecturerModal = ref(false)
 const showSubjectModal = ref(false)
+const showScheduleModal = ref(false)
+const showScheduleActionModal = ref(false)
 const showEventModal = ref(false)
+const showPresetModal = ref(false)
 const showPreviewEventModal = ref(false)
-const previewingEvent = ref<EventWithSubject | null>(null)
+const previewingEvent = ref<EventSelect | null>(null)
 
 const editingLecturer = ref<LecturerSelect | null>(null)
 const editingSubject = ref<SubjectWithLecturers | null>(null)
-const editingEvent = ref<EventWithSubject | null>(null)
+const editingSchedule = ref<ScheduleWithSubject | null>(null)
+const actionTargetSchedule = ref<ScheduleWithSubject | null>(null)
+const editingEvent = ref<EventSelect | null>(null)
+const editingPreset = ref<EventPresetSelect | null>(null)
 const submittingForm = ref(false)
 
 // Delete Confirmation Modal State
 const showDeleteConfirmModal = ref(false)
-const deleteType = ref<'lecturer' | 'subject' | 'event' | null>(null)
+const deleteType = ref<'lecturer' | 'subject' | 'schedule' | 'event' | 'preset' | null>(null)
 const targetDeleteId = ref<number | null>(null)
 const targetDeleteName = ref('')
 const deletingItem = ref(false)
@@ -56,17 +69,21 @@ const deletingItem = ref(false)
 async function fetchData() {
   loadingData.value = true
   try {
-    const [yearsRes, lecturersRes, subjectsRes, eventsRes] = await Promise.all([
+    const [yearsRes, lecturersRes, subjectsRes, schedulesRes, eventsRes, presetsRes] = await Promise.all([
       $fetch<AcademicYearsResponse>('/api/academic-years'),
       $fetch<LecturerSelect[]>('/api/lecturers'),
       $fetch<SubjectWithLecturers[]>('/api/subjects'),
-      $fetch<EventWithSubject[]>('/api/events')
+      $fetch<ScheduleWithSubject[]>('/api/schedules'),
+      $fetch<EventSelect[]>('/api/events'),
+      $fetch<EventPresetSelect[]>('/api/event-presets')
     ])
     academicYearsData.value = yearsRes
     selectedActiveYear.value = yearsRes.activeYearId !== null ? String(yearsRes.activeYearId) : 'none'
     lecturers.value = lecturersRes
     subjects.value = subjectsRes
+    schedules.value = schedulesRes
     events.value = eventsRes
+    eventPresets.value = presetsRes
   } catch (err: unknown) {
     toast.add({
       title: 'Gagal Memuat Data',
@@ -96,11 +113,20 @@ const yearOptions = computed(() => {
   return opts
 })
 
-// Subject Options for Event Modal
+// Subject Options for Schedule Modal
 const subjectOptions = computed(() => {
   return subjects.value.map(s => ({
-    label: `${s.name} (${s.day || '-'} ${s.timeStart || ''})`,
+    label: s.name,
     value: s.id
+  }))
+})
+
+// Schedule Options for Event Modal
+const scheduleOptions = computed(() => {
+  return schedules.value.map(s => ({
+    label: `${s.subject?.name || 'Mata Kuliah'} (${s.day} ${s.timeStart}-${s.timeEnd})`,
+    value: s.id,
+    schedule: s
   }))
 })
 
@@ -109,11 +135,11 @@ const lecturerShortnamesList = computed(() => {
   return lecturers.value.map(l => `${l.shortname} - ${l.name}`)
 })
 
-function getSubjectNextExpiryIso(subjectId?: number | null): string {
-  if (!subjectId) return ''
-  const sub = subjects.value.find(s => s.id === subjectId)
-  if (!sub || !sub.day || !sub.timeEnd) return ''
-  const iso = calculateNextScheduleOccurrence(sub.day, sub.timeEnd)
+function getScheduleNextExpiryIso(scheduleId?: number | null): string {
+  if (!scheduleId) return ''
+  const sched = schedules.value.find(s => s.id === scheduleId)
+  if (!sched || !sched.day || !sched.timeEnd) return ''
+  const iso = calculateNextScheduleOccurrence(sched.day, sched.timeEnd)
   if (!iso) return ''
   const d = new Date(iso)
   const y = String(d.getFullYear()).padStart(4, '0')
@@ -242,25 +268,86 @@ async function submitSubjectForm(payload: CreateSubjectDTO, editingId: number | 
   }
 }
 
+// Handlers for Schedule Modal
+function openAddScheduleModal() {
+  editingSchedule.value = null
+  showScheduleModal.value = true
+}
+
+function openEditScheduleModal(s: ScheduleWithSubject) {
+  editingSchedule.value = s
+  showScheduleModal.value = true
+}
+
+async function submitScheduleForm(payload: CreateScheduleDTO, editingId: number | null) {
+  submittingForm.value = true
+  try {
+    if (editingId === null) {
+      await $fetch('/api/schedules', { method: 'POST', body: payload })
+      toast.add({ title: 'Jadwal Kuliah Berhasil Ditambahkan', color: 'success' })
+    } else {
+      await $fetch(`/api/schedules/${editingId}`, { method: 'PUT', body: payload })
+      toast.add({ title: 'Jadwal Kuliah Berhasil Diperbarui', color: 'success' })
+    }
+    showScheduleModal.value = false
+    await fetchData()
+  } catch (err: unknown) {
+    toast.add({
+      title: 'Gagal Menyimpan Jadwal',
+      description: getApiErrorMessage(err),
+      color: 'error'
+    })
+  } finally {
+    submittingForm.value = false
+  }
+}
+
+// Handlers for Schedule Action Modal (Skip / Move / End / Reset)
+function openScheduleActionModal(s: ScheduleWithSubject) {
+  actionTargetSchedule.value = s
+  showScheduleActionModal.value = true
+}
+
+async function submitScheduleAction(payload: ScheduleActionDTO, scheduleId: number) {
+  submittingForm.value = true
+  try {
+    await $fetch(`/api/schedules/${scheduleId}/action`, {
+      method: 'PUT',
+      body: payload
+    })
+    toast.add({ title: 'Tindakan Jadwal Berhasil Diterapkan', color: 'success' })
+    showScheduleActionModal.value = false
+    await fetchData()
+  } catch (err: unknown) {
+    toast.add({
+      title: 'Gagal Menerapkan Tindakan Jadwal',
+      description: getApiErrorMessage(err),
+      color: 'error'
+    })
+  } finally {
+    submittingForm.value = false
+  }
+}
+
 // Handlers for Event Modal
 function openAddEventModal() {
   editingEvent.value = null
   showEventModal.value = true
 }
 
-function openEditEventModal(ev: EventWithSubject) {
+function openEditEventModal(ev: EventSelect) {
   editingEvent.value = ev
   showEventModal.value = true
 }
 
-function openPreviewEventModal(ev: EventWithSubject) {
+function openPreviewEventModal(ev: EventSelect) {
   previewingEvent.value = ev
   showPreviewEventModal.value = true
 }
 
 async function submitEventForm(payload: CreateEventDTO, editingId: number | null) {
-  if (!payload.subjectId) {
-    toast.add({ title: 'Pilih Mata Kuliah', description: 'Mata kuliah wajib dipilih', color: 'error' })
+  if (!payload.scheduleId) {
+    toast.add({ title: 'Pilih Jadwal Kuliah', description: 'Jadwal kuliah wajib dipilih', color: 'error' })
     return
   }
   if (!payload.title) {
@@ -291,8 +378,42 @@ async function submitEventForm(payload: CreateEventDTO, editingId: number | null
   }
 }
 
+// Handlers for Event Preset Modal
+function openAddPresetModal() {
+  editingPreset.value = null
+  showPresetModal.value = true
+}
+
+function openEditPresetModal(preset: EventPresetSelect) {
+  editingPreset.value = preset
+  showPresetModal.value = true
+}
+
+async function submitPresetForm(payload: CreateEventPresetDTO, editingId: number | null) {
+  submittingForm.value = true
+  try {
+    if (editingId === null) {
+      await $fetch('/api/event-presets', { method: 'POST', body: payload })
+      toast.add({ title: 'Preset Event Berhasil Ditambahkan', color: 'success' })
+    } else {
+      await $fetch(`/api/event-presets/${editingId}`, { method: 'PUT', body: payload })
+      toast.add({ title: 'Preset Event Berhasil Diperbarui', color: 'success' })
+    }
+    showPresetModal.value = false
+    await fetchData()
+  } catch (err: unknown) {
+    toast.add({
+      title: 'Gagal Menyimpan Preset',
+      description: getApiErrorMessage(err),
+      color: 'error'
+    })
+  } finally {
+    submittingForm.value = false
+  }
+}
+
 // Delete Confirmation Handlers
-function openDeleteConfirm(type: 'lecturer' | 'subject' | 'event', id: number, name: string) {
+function openDeleteConfirm(type: 'lecturer' | 'subject' | 'schedule' | 'event' | 'preset', id: number, name: string) {
   deleteType.value = type
   targetDeleteId.value = id
   targetDeleteName.value = name
@@ -309,15 +430,21 @@ async function confirmDelete() {
     } else if (deleteType.value === 'subject') {
       await $fetch(`/api/subjects/${targetDeleteId.value}`, { method: 'DELETE' })
       toast.add({ title: 'Mata Kuliah Berhasil Dihapus', color: 'success' })
+    } else if (deleteType.value === 'schedule') {
+      await $fetch(`/api/schedules/${targetDeleteId.value}`, { method: 'DELETE' })
+      toast.add({ title: 'Jadwal Berhasil Dihapus', color: 'success' })
     } else if (deleteType.value === 'event') {
       await $fetch(`/api/events/${targetDeleteId.value}`, { method: 'DELETE' })
       toast.add({ title: 'Event Berhasil Dihapus', color: 'success' })
+    } else if (deleteType.value === 'preset') {
+      await $fetch(`/api/event-presets/${targetDeleteId.value}`, { method: 'DELETE' })
+      toast.add({ title: 'Preset Berhasil Dihapus', color: 'success' })
     }
     showDeleteConfirmModal.value = false
     await fetchData()
   } catch (err: unknown) {
     toast.add({
-      title: `Gagal Menghapus ${deleteType.value === 'lecturer' ? 'Dosen' : deleteType.value === 'subject' ? 'Mata Kuliah' : 'Event'}`,
+      title: 'Gagal Menghapus Data',
       description: getApiErrorMessage(err),
       color: 'error'
     })
@@ -357,6 +484,15 @@ async function confirmDelete() {
       @delete="(id, title) => openDeleteConfirm('event', id, title)"
     />
 
+    <!-- SECTION: CRUD Jadwal Perkuliahan -->
+    <DashboardSchedulesTable
+      :schedules="schedules"
+      @add="openAddScheduleModal"
+      @action="openScheduleActionModal"
+      @edit="openEditScheduleModal"
+      @delete="(id, name) => openDeleteConfirm('schedule', id, name)"
+    />
+
     <!-- SECTION: CRUD Mata Kuliah -->
     <DashboardSubjectsTable
       :subjects="subjects"
@@ -371,6 +507,14 @@ async function confirmDelete() {
       @add="openAddLecturerModal"
       @edit="openEditLecturerModal"
       @delete="(id, name) => openDeleteConfirm('lecturer', id, name)"
+    />
+
+    <!-- SECTION: CRUD Preset Event (Di Paling Bawah) -->
+    <DashboardEventPresetsSection
+      :presets="eventPresets"
+      @add="openAddPresetModal"
+      @edit="openEditPresetModal"
+      @delete="(id, name) => openDeleteConfirm('preset', id, name)"
     />
 
     <!-- MODAL: Tambah Tahun Ajaran -->
@@ -397,21 +541,47 @@ async function confirmDelete() {
       @submit="submitSubjectForm"
     />
 
+    <!-- MODAL: CRUD Jadwal Kuliah -->
+    <DashboardScheduleModal
+      v-model:open="showScheduleModal"
+      :schedule="editingSchedule"
+      :subject-options="subjectOptions"
+      :loading="submittingForm"
+      @submit="submitScheduleForm"
+    />
+
+    <!-- MODAL: Tindakan Jadwal (Skip, Move, End, Reset) -->
+    <DashboardScheduleActionModal
+      v-model:open="showScheduleActionModal"
+      :schedule="actionTargetSchedule"
+      :loading="submittingForm"
+      @submit="submitScheduleAction"
+    />
+
     <!-- MODAL: CRUD Event Mata Kuliah -->
     <DashboardEventModal
       v-model:open="showEventModal"
       :event="editingEvent"
-      :subject-options="subjectOptions"
-      :get-subject-next-expiry-iso="getSubjectNextExpiryIso"
+      :schedule-options="scheduleOptions"
+      :presets="eventPresets"
+      :get-schedule-next-expiry-iso="getScheduleNextExpiryIso"
       :loading="submittingForm"
       @submit="submitEventForm"
+    />
+
+    <!-- MODAL: CRUD Preset Event -->
+    <DashboardEventPresetModal
+      v-model:open="showPresetModal"
+      :preset="editingPreset"
+      :loading="submittingForm"
+      @submit="submitPresetForm"
     />
 
     <!-- MODAL: Konfirmasi Hapus Custom -->
     <DashboardDeleteConfirmModal
       v-model:open="showDeleteConfirmModal"
       :target-name="targetDeleteName"
-      :target-type="deleteType"
+      :target-type="deleteType === 'preset' ? 'event' : deleteType === 'schedule' ? 'subject' : deleteType"
       :loading="deletingItem"
       @confirm="confirmDelete"
     />

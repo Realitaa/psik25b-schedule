@@ -29,6 +29,13 @@
       "when": 1787539693041,
       "tag": "0003_stale_lucky_pierre",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1787600000000,
+      "tag": "0004_add_schedules_and_event_presets",
+      "breakpoints": true
     }
   ]
 }

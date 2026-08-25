@@ -1,20 +1,20 @@
 <script setup lang="ts">
-import type { EventWithSubject } from '#shared/types'
+import type { EventSelect } from '#shared/types'
 import { formatEventEndDate } from '#shared/utils/date'
 
 defineProps<{
-  events: EventWithSubject[]
+  events: EventSelect[]
 }>()
 
 const emit = defineEmits<{
   (e: 'add'): void
-  (e: 'preview' | 'edit', event: EventWithSubject): void
+  (e: 'preview' | 'edit', event: EventSelect): void
   (e: 'delete', id: number, title: string): void
 }>()
 
 const eventColumns = [
   { accessorKey: 'subject', header: 'Mata Kuliah' },
-  { accessorKey: 'title', header: 'Judul Event' },
+  { accessorKey: 'title', header: 'Judul Event & Tipe' },
   { accessorKey: 'endDate', header: 'Batas Waktu (Auto-Expiry)' },
   { id: 'actions', header: 'Aksi' }
 ]
@@ -33,7 +33,7 @@ const eventColumns = [
             Tabel Manajemen Event / Pengumuman Matkul
           </h2>
           <p class="text-sm text-muted">
-            Kelola tugas, kuis, atau pengumuman khusus yang melekat pada mata kuliah (otomatis kedaluwarsa)
+            Kelola tugas, kuis, atau pengumuman khusus yang melekat pada jadwal kuliah (otomatis kedaluwarsa)
           </p>
         </div>
         <UButton
@@ -51,12 +51,33 @@ const eventColumns = [
     >
       <template #subject-cell="{ row }">
         <div class="text-sm font-semibold text-highlighted">
-          {{ row.original.subject?.name || '-' }}
+          {{ row.original.schedule?.subject?.name || '-' }}
+          <span
+            v-if="row.original.schedule"
+            class="text-xs text-muted block font-normal"
+          >
+            {{ row.original.schedule.day }} ({{ row.original.schedule.timeStart }}-{{ row.original.schedule.timeEnd }})
+          </span>
         </div>
       </template>
 
       <template #title-cell="{ row }">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
+          <div
+            v-if="row.original.type || row.original.icon || row.original.color"
+            class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium border shrink-0"
+            :style="{
+              backgroundColor: row.original.color ? `${row.original.color}15` : undefined,
+              borderColor: row.original.color ? `${row.original.color}40` : undefined,
+              color: row.original.color || undefined
+            }"
+          >
+            <UIcon
+              :name="row.original.icon || 'i-lucide-bell'"
+              class="size-3 shrink-0"
+            />
+            <span>{{ row.original.type || 'Event' }}</span>
+          </div>
           <span class="font-medium text-highlighted">{{ row.original.title }}</span>
           <UButton
             icon="i-lucide-eye"

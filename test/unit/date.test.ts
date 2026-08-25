@@ -33,8 +33,8 @@ describe('Date & Schedule Utilities', () => {
   })
 
   describe('formatIndonesianDate', () => {
-    it('should format date with Indonesian locale', () => {
-      const d = new Date(2026, 4, 15)
+    it('should format date with Indonesian locale in WIB', () => {
+      const d = new Date('2026-05-15T03:30:00.000Z') // 10:30 WIB
       const formatted = formatIndonesianDate(d)
       expect(formatted).toContain('Mei')
       expect(formatted).toContain('2026')
@@ -47,11 +47,13 @@ describe('Date & Schedule Utilities', () => {
   })
 
   describe('formatIndonesianDateTime', () => {
-    it('should format date and time with WIB suffix', () => {
-      const d = new Date(2026, 4, 15, 8, 30)
-      const formatted = formatIndonesianDateTime(d)
+    it('should format date and time with exact WIB hour and WIB suffix', () => {
+      // 10:30 WIB = 03:30 UTC
+      const isoWib1030 = '2026-08-29T03:30:00.000Z'
+      const formatted = formatIndonesianDateTime(isoWib1030)
+      expect(formatted).toContain('10:30')
       expect(formatted).toContain('WIB')
-      expect(formatted).toContain('Mei')
+      expect(formatted).toContain('Agustus')
     })
 
     it('should return empty string on invalid date', () => {
@@ -67,35 +69,38 @@ describe('Date & Schedule Utilities', () => {
     })
 
     it('should format ISO date correctly with WIB', () => {
-      const iso = '2026-05-15T10:30:00.000Z'
+      const iso = '2026-05-15T03:30:00.000Z' // 10:30 WIB
       const formatted = formatEventEndDate(iso)
+      expect(formatted).toContain('10:30')
       expect(formatted).toContain('WIB')
     })
   })
 
   describe('calculateNextScheduleOccurrence', () => {
-    it('should calculate next occurrence for a given day and timeEnd', () => {
-      // Base date: Wednesday (index 3), 2026-05-13 08:00:00
-      const baseWednesday = new Date(2026, 4, 13, 8, 0, 0)
+    it('should calculate next occurrence for a given day and timeEnd in WIB', () => {
+      // Base date: Wednesday (index 3), 2026-05-13 08:00:00 WIB
+      const baseWednesday = new Date('2026-05-13T01:00:00.000Z') // 08:00 WIB
 
-      // Target: Thursday (index 4) at 10:30 -> Next day (May 14)
+      // Target: Thursday (index 4) at 10:30 WIB -> Next day (May 14 at 10:30 WIB = 03:30 UTC)
       const nextThursday = calculateNextScheduleOccurrence('Kamis', '10:30', baseWednesday)
       expect(nextThursday).toBeDefined()
-      const d = new Date(nextThursday!)
-      expect(d.getDate()).toBe(14)
-      expect(d.getHours()).toBe(10)
-      expect(d.getMinutes()).toBe(30)
+      const formatted = formatIndonesianDateTime(nextThursday!)
+      expect(formatted).toContain('14 Mei 2026')
+      expect(formatted).toContain('10:30')
+      expect(formatted).toContain('WIB')
     })
 
     it('should roll over to next week if target day is today but time has already passed', () => {
-      // Base date: Wednesday 12:00
-      const baseWednesdayAfternoon = new Date(2026, 4, 13, 12, 0, 0)
+      // Base date: Wednesday 12:00 WIB (05:00 UTC)
+      const baseWednesdayAfternoon = new Date('2026-05-13T05:00:00.000Z')
 
       // Target: Wednesday at 10:00 (already passed today) -> Next Wednesday (May 20)
       const nextWednesday = calculateNextScheduleOccurrence('Rabu', '10:00', baseWednesdayAfternoon)
       expect(nextWednesday).toBeDefined()
-      const d = new Date(nextWednesday!)
-      expect(d.getDate()).toBe(20)
+      const formatted = formatIndonesianDateTime(nextWednesday!)
+      expect(formatted).toContain('20 Mei 2026')
+      expect(formatted).toContain('10:00')
+      expect(formatted).toContain('WIB')
     })
 
     it('should return null for invalid day or timeEnd', () => {

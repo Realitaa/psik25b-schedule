@@ -5,14 +5,18 @@ import { defineApiHandler } from '../../utils/handler'
 import { parseIdParam, validateBody } from '../../utils/request'
 
 const updateEventSchema = z.object({
-  subjectId: z.number().int().optional(),
+  scheduleId: z.number().int().optional(),
+  presetId: z.number().int().nullable().optional(),
   title: z.string().min(1, 'Judul event wajib diisi').optional(),
   description: z.string().nullable().optional(),
+  type: z.string().nullable().optional(),
+  color: z.string().nullable().optional(),
+  icon: z.string().nullable().optional(),
   endDate: z.string().nullable().optional()
 })
 
 export default defineApiHandler(async (event): Promise<EventSelect> => {
-  const id = parseIdParam(event, 'id', 'ID event tidak valid')
+  const id = parseIdParam(event)
   const body = await validateBody(event, updateEventSchema)
   return await eventService.updateEvent(id, body)
 })

@@ -1,4 +1,5 @@
-import type { SubjectSelect } from './subject'
+import type { ScheduleWithSubject } from './schedule'
+import type { EventPresetSelect } from './event-preset'
 
 export interface EventAuthor {
   id: number
@@ -8,26 +9,40 @@ export interface EventAuthor {
 
 export interface EventSelect {
   id: number
-  subjectId: number
+  scheduleId: number
   authorId: number | null
+  presetId: number | null
   title: string
   description: string | null
+  type: string | null
+  color: string | null
+  icon: string | null
   endDate: string | null
   createdAt: string | null
   author?: EventAuthor | null
-}
-
-export interface EventWithSubject extends EventSelect {
-  subject: SubjectSelect
-  author?: EventAuthor | null
+  preset?: EventPresetSelect | null
+  schedule?: ScheduleWithSubject | null
 }
 
 export interface CreateEventDTO {
-  subjectId: number
-  authorId?: number | null
+  scheduleId: number
+  presetId?: number | null
   title: string
   description?: string | null
+  type?: string | null
+  color?: string | null
+  icon?: string | null
   endDate?: string | null
+  authorId?: number | null
 }
 
-export type UpdateEventDTO = Partial<CreateEventDTO>
+export interface UpdateEventDTO {
+  scheduleId?: number
+  presetId?: number | null
+  title?: string
+  description?: string | null
+  type?: string | null
+  color?: string | null
+  icon?: string | null
+  endDate?: string | null
+}

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { SubjectWithLecturers, EventSelect } from '#shared/types'
+import type { ScheduleWithSubject, EventSelect } from '#shared/types'
 
 defineProps<{
   type: 'current' | 'incoming' | 'holiday'
-  subject?: SubjectWithLecturers
+  schedule?: ScheduleWithSubject
   holidayDescription?: string
   dateStr?: string
 }>()
@@ -59,7 +59,7 @@ function openEventModal(event: EventSelect) {
 
     <!-- Active Class (Current / Incoming) -->
     <div
-      v-else-if="subject"
+      v-else-if="schedule"
       class="flex flex-col md:flex-row md:items-center justify-between gap-4 py-2"
     >
       <div class="flex items-start gap-4 flex-1">
@@ -84,26 +84,34 @@ function openEventModal(event: EventSelect) {
               {{ type === 'current' ? 'Sedang Berlangsung' : 'Mendatang' }}
             </UBadge>
             <UBadge
-              v-if="subject.isReplacement"
+              v-if="schedule.type === 'temporary_move'"
               color="warning"
               variant="subtle"
               size="sm"
             >
-              Matkul Pengganti
+              Jadwal Pindahan
+            </UBadge>
+            <UBadge
+              v-else-if="schedule.type === 'one_off'"
+              color="warning"
+              variant="subtle"
+              size="sm"
+            >
+              Matkul Pengganti (1x)
             </UBadge>
             <span class="text-xs font-semibold text-highlighted">
-              {{ subject.day }}, {{ subject.timeStart || '??:??' }} - {{ subject.timeEnd || '??:??' }}
+              {{ schedule.day }}, {{ schedule.timeStart || '??:??' }} - {{ schedule.timeEnd || '??:??' }}
             </span>
           </div>
 
           <h3 class="text-lg sm:text-xl font-bold text-highlighted">
-            {{ subject.name }}
+            {{ schedule.subject?.name || 'Mata Kuliah' }}
           </h3>
 
           <!-- Location -->
           <div class="flex items-center gap-2 text-sm text-muted flex-wrap">
             <UBadge
-              v-if="subject.isOnline"
+              v-if="schedule.isOnline"
               color="info"
               variant="subtle"
             >
@@ -119,49 +127,54 @@ function openEventModal(event: EventSelect) {
                 class="size-6 text-primary shrink-0"
               />
               <UBadge
-                v-if="subject.building"
+                v-if="schedule.building"
                 class="tabular-nums"
               >
-                {{ subject.building }}
+                {{ schedule.building }}
               </UBadge>
               <UBadge
-                v-if="subject.floor"
+                v-if="schedule.floor"
                 class="tabular-nums"
               >
-                {{ subject.floor }}
+                {{ schedule.floor }}
               </UBadge>
               <UBadge
-                v-if="subject.room"
+                v-if="schedule.room"
                 class="tabular-nums"
               >
-                {{ subject.room }}
+                {{ schedule.room }}
               </UBadge>
               <span
-                v-if="!subject.building && !subject.floor && !subject.room"
+                v-if="!schedule.building && !schedule.floor && !schedule.room"
                 class="text-muted"
               >-</span>
             </template>
           </div>
 
-          <!-- Events if any attached to subject -->
+          <!-- Events if any attached to schedule -->
           <div
-            v-if="subject.events && subject.events.length > 0"
+            v-if="schedule.events && schedule.events.length > 0"
             class="pt-1 flex flex-col gap-1.5"
           >
             <div
-              v-for="ev in subject.events"
+              v-for="ev in schedule.events"
               :key="ev.id"
-              class="inline-flex items-center gap-2 px-2.5 py-1 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 rounded-lg text-xs font-medium cursor-pointer transition-colors max-w-fit"
+              class="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer transition-colors max-w-fit border"
+              :style="{
+                backgroundColor: ev.color ? `${ev.color}15` : undefined,
+                borderColor: ev.color ? `${ev.color}40` : undefined,
+                color: ev.color || undefined
+              }"
               @click="openEventModal(ev)"
             >
               <UIcon
-                name="i-lucide-bell"
-                class="size-3.5 text-amber-500 shrink-0"
+                :name="ev.icon || 'i-lucide-bell'"
+                class="size-3.5 shrink-0"
               />
               <span class="font-semibold">{{ ev.title }}</span>
               <UIcon
                 name="i-lucide-arrow-right"
-                class="size-3 text-amber-500 shrink-0"
+                class="size-3 shrink-0 opacity-70"
               />
             </div>
           </div>
@@ -173,7 +186,7 @@ function openEventModal(event: EventSelect) {
         <span class="text-xs text-muted uppercase tracking-wider font-semibold">Dosen Pengampu</span>
         <div class="flex flex-wrap gap-1">
           <UBadge
-            v-for="l in subject.lecturers"
+            v-for="l in schedule.subject?.lecturers || []"
             :key="l.id"
             color="neutral"
             variant="outline"
@@ -182,7 +195,7 @@ function openEventModal(event: EventSelect) {
             {{ l.name }} ({{ l.shortname }})
           </UBadge>
           <span
-            v-if="!subject.lecturers || subject.lecturers.length === 0"
+            v-if="!schedule.subject?.lecturers || schedule.subject.lecturers.length === 0"
             class="text-sm text-muted italic"
           >
             Belum ditentukan
@@ -194,7 +207,7 @@ function openEventModal(event: EventSelect) {
     <!-- Event Detail Modal -->
     <EventDetailModal
       v-model:open="isEventModalOpen"
-      :event="selectedEvent ? { ...selectedEvent, subject } : null"
+      :event="selectedEvent ? { ...selectedEvent, schedule } : null"
     />
   </UCard>
 </template>

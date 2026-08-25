@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { DayStatusResult, SubjectWithLecturers } from '#shared/types'
+import type { DayStatusResult, ScheduleWithSubject } from '#shared/types'
 
 defineProps<{
   dayStatus: DayStatusResult
-  todaySubjects: Array<{
-    subject: SubjectWithLecturers
+  todaySchedules: Array<{
+    schedule: ScheduleWithSubject
     statusType: 'current' | 'incoming'
   }>
   todayFormatted?: string
@@ -53,17 +53,17 @@ defineProps<{
       class="space-y-4"
     >
       <div
-        v-if="todaySubjects.length > 0"
+        v-if="todaySchedules.length > 0"
         class="space-y-4"
       >
         <TodayActivityCard
-          v-for="item in todaySubjects"
-          :key="item.subject.id"
+          v-for="item in todaySchedules"
+          :key="item.schedule.id"
           :type="item.statusType"
-          :subject="item.subject"
+          :schedule="item.schedule"
         />
       </div>
-      <!-- Empty State: No subjects scheduled today or all have finished -->
+      <!-- Empty State: No schedules active today or all have finished -->
       <div
         v-else
         class="flex flex-col items-center justify-center py-12 px-6 border border-dashed border-neutral-200 dark:border-neutral-800 rounded-2xl text-center"

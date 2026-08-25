@@ -1,27 +1,22 @@
-import { eq, inArray, lt, and, isNotNull } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import {
   subjects,
   subjectLecturers,
   lecturers,
-  events,
-  users,
   type SubjectInsert
 } from '../db/schema'
 import type {
   SubjectWithLecturers,
-  LecturerSelect,
-  EventSelect
+  LecturerSelect
 } from '#shared/types'
 
 export class SubjectRepository {
-  async cleanupExpired(): Promise<void> {
-    const nowISO = new Date().toISOString()
-    await db.delete(subjects).where(and(eq(subjects.isReplacement, true), isNotNull(subjects.endDate), lt(subjects.endDate, nowISO))).run()
-  }
+  async findAll(academicYearId?: number): Promise<SubjectWithLecturers[]> {
+    const query = academicYearId
+      ? db.select().from(subjects).where(eq(subjects.academicYearId, academicYearId))
+      : db.select().from(subjects)
 
-  async findAll(): Promise<SubjectWithLecturers[]> {
-    await this.cleanupExpired()
-    const allSubjects = await db.select().from(subjects).all()
+    const allSubjects = await query.all()
     if (allSubjects.length === 0) return []
 
     const allLecturers = await db.select().from(lecturers).all()
@@ -36,55 +31,20 @@ export class SubjectRepository {
       relsMap.get(r.subjectId)!.push(r.lecturerId)
     }
 
-    const allEvents = await db.select({
-      id: events.id,
-      subjectId: events.subjectId,
-      authorId: events.authorId,
-      title: events.title,
-      endDate: events.endDate,
-      createdAt: events.createdAt
-    }).from(events).all()
-    const nowISO = new Date().toISOString()
-    const activeEvents = allEvents.filter(ev => !ev.endDate || ev.endDate >= nowISO)
-
-    const allUsers = await db.select({ id: users.id, name: users.name, username: users.username }).from(users).all()
-    const usersMap = new Map(allUsers.map(u => [u.id, u]))
-
-    const eventsWithAuthors = activeEvents.map((ev) => {
-      const author = ev.authorId ? (usersMap.get(ev.authorId) || null) : null
-      return {
-        ...ev,
-        description: null,
-        author
-      }
-    })
-
-    const eventsBySubjectMap = new Map<number, typeof eventsWithAuthors>()
-    for (const ev of eventsWithAuthors) {
-      if (!eventsBySubjectMap.has(ev.subjectId)) {
-        eventsBySubjectMap.set(ev.subjectId, [])
-      }
-      eventsBySubjectMap.get(ev.subjectId)!.push(ev)
-    }
-
     return allSubjects.map((sub) => {
       const lecturerIds = relsMap.get(sub.id) || []
       const lecturerList = lecturerIds
         .map(id => lecturersMap.get(id))
         .filter((l): l is LecturerSelect => Boolean(l))
 
-      const subjectEventsList = eventsBySubjectMap.get(sub.id) || []
-
       return {
         ...sub,
-        lecturers: lecturerList,
-        events: subjectEventsList
+        lecturers: lecturerList
       }
     })
   }
 
   async findById(id: number): Promise<SubjectWithLecturers | undefined> {
-    await this.cleanupExpired()
     const sub = await db.select().from(subjects).where(eq(subjects.id, id)).get()
     if (!sub) return undefined
 
@@ -99,42 +59,9 @@ export class SubjectRepository {
       lecturerList = await db.select().from(lecturers).where(inArray(lecturers.id, ids)).all()
     }
 
-    const nowISO = new Date().toISOString()
-    const subjectEvents = await db.select({
-      id: events.id,
-      subjectId: events.subjectId,
-      authorId: events.authorId,
-      title: events.title,
-      endDate: events.endDate,
-      createdAt: events.createdAt
-    }).from(events).where(eq(events.subjectId, sub.id)).all()
-
-    const authorIds = [...new Set(subjectEvents.map(ev => ev.authorId).filter((authorId): authorId is number => authorId !== null))]
-    let usersMap = new Map<number, { id: number, name: string | null, username: string }>()
-    if (authorIds.length > 0) {
-      const matchedUsers = await db.select({ id: users.id, name: users.name, username: users.username })
-        .from(users)
-        .where(inArray(users.id, authorIds))
-        .all()
-      usersMap = new Map(matchedUsers.map(u => [u.id, u]))
-    }
-
-    const activeEvents: EventSelect[] = []
-    for (const ev of subjectEvents) {
-      if (!ev.endDate || ev.endDate >= nowISO) {
-        const author = ev.authorId ? (usersMap.get(ev.authorId) || null) : null
-        activeEvents.push({
-          ...ev,
-          description: null,
-          author
-        })
-      }
-    }
-
     return {
       ...sub,
-      lecturers: lecturerList,
-      events: activeEvents
+      lecturers: lecturerList
     }
   }
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import TodayActivityCard from '~/components/TodayActivityCard.vue'
-import type { SubjectWithLecturers } from '#shared/types'
+import type { ScheduleWithSubject } from '#shared/types'
 
 describe('TodayActivityCard Component', () => {
   it('should render Holiday state correctly with badge and description', async () => {
@@ -20,12 +20,14 @@ describe('TodayActivityCard Component', () => {
   })
 
   it('should render Active Class (current) state with subject name, room, and lecturers', async () => {
-    const mockSubject: SubjectWithLecturers = {
+    const mockSchedule: ScheduleWithSubject = {
       id: 1,
-      academicYearId: 1,
-      name: 'Pemrograman Web Lanjut',
+      subjectId: 1,
+      type: 'regular',
+      parentScheduleId: null,
+      status: 'active',
+      skippedUntil: null,
       isOnline: false,
-      isReplacement: false,
       building: 'Fasilkom',
       floor: '2',
       room: 'Lab 3',
@@ -34,22 +36,29 @@ describe('TodayActivityCard Component', () => {
       day: 'Senin',
       endDate: null,
       createdAt: null,
-      lecturers: [
-        {
-          id: 1,
-          name: 'Dr. John Doe',
-          shortname: 'JD',
-          nip: null,
-          phone: null,
-          createdAt: null
-        }
-      ]
+      subject: {
+        id: 1,
+        academicYearId: 1,
+        name: 'Pemrograman Web Lanjut',
+        createdAt: null,
+        lecturers: [
+          {
+            id: 1,
+            name: 'Dr. John Doe',
+            shortname: 'JD',
+            nip: null,
+            phone: null,
+            createdAt: null
+          }
+        ]
+      },
+      events: []
     }
 
     const wrapper = await mountSuspended(TodayActivityCard, {
       props: {
         type: 'current',
-        subject: mockSubject
+        schedule: mockSchedule
       }
     })
 
@@ -63,12 +72,14 @@ describe('TodayActivityCard Component', () => {
   })
 
   it('should render Online badge when subject is online', async () => {
-    const mockSubject: SubjectWithLecturers = {
+    const mockSchedule: ScheduleWithSubject = {
       id: 2,
-      academicYearId: 1,
-      name: 'Etika Profesi Online',
+      subjectId: 2,
+      type: 'regular',
+      parentScheduleId: null,
+      status: 'active',
+      skippedUntil: null,
       isOnline: true,
-      isReplacement: false,
       building: null,
       floor: null,
       room: null,
@@ -77,13 +88,20 @@ describe('TodayActivityCard Component', () => {
       day: 'Senin',
       endDate: null,
       createdAt: null,
-      lecturers: []
+      subject: {
+        id: 2,
+        academicYearId: 1,
+        name: 'Etika Profesi Online',
+        createdAt: null,
+        lecturers: []
+      },
+      events: []
     }
 
     const wrapper = await mountSuspended(TodayActivityCard, {
       props: {
         type: 'incoming',
-        subject: mockSubject
+        schedule: mockSchedule
       }
     })
 

@@ -3,7 +3,6 @@ import type {
   CreateSubjectDTO,
   UpdateSubjectDTO
 } from '#shared/types'
-import { calculateNextScheduleOccurrence } from '#shared/utils/date'
 import {
   subjectRepository,
   type SubjectRepository
@@ -20,8 +19,8 @@ export class SubjectService {
     private readonly lecturerRepo: LecturerRepository = lecturerRepository
   ) {}
 
-  async getSubjects(): Promise<SubjectWithLecturers[]> {
-    return await this.subjectRepo.findAll()
+  async getSubjects(academicYearId?: number): Promise<SubjectWithLecturers[]> {
+    return await this.subjectRepo.findAll(academicYearId)
   }
 
   async getSubjectById(id: number): Promise<SubjectWithLecturers> {
@@ -37,25 +36,9 @@ export class SubjectService {
       lecturerIds = lecturersFound.map(l => l.id)
     }
 
-    const isOnline = Boolean(dto.isOnline)
-    const isReplacement = Boolean(dto.isReplacement)
-    let endDate = dto.endDate || null
-    if (isReplacement && !endDate) {
-      endDate = calculateNextScheduleOccurrence(dto.day, dto.timeEnd)
-    }
-
     return await this.subjectRepo.create({
       academicYearId: dto.academicYearId || null,
-      name: dto.name,
-      isOnline,
-      isReplacement,
-      building: isOnline ? null : (dto.building || null),
-      floor: isOnline ? null : (dto.floor || null),
-      room: isOnline ? null : (dto.room || null),
-      timeStart: dto.timeStart || null,
-      timeEnd: dto.timeEnd || null,
-      day: dto.day || null,
-      endDate
+      name: dto.name
     }, lecturerIds)
   }
 
@@ -73,30 +56,9 @@ export class SubjectService {
       }
     }
 
-    const isOnline = dto.isOnline !== undefined ? Boolean(dto.isOnline) : subject.isOnline
-    const isReplacement = dto.isReplacement !== undefined ? Boolean(dto.isReplacement) : subject.isReplacement
-    const day = dto.day !== undefined ? dto.day : subject.day
-    const timeEnd = dto.timeEnd !== undefined ? dto.timeEnd : subject.timeEnd
-    let endDate = dto.endDate !== undefined ? dto.endDate : subject.endDate
-
-    if (isReplacement && !endDate) {
-      endDate = calculateNextScheduleOccurrence(day, timeEnd)
-    } else if (!isReplacement) {
-      endDate = null
-    }
-
     const updated = await this.subjectRepo.update(id, {
       ...(dto.academicYearId !== undefined && { academicYearId: dto.academicYearId }),
-      ...(dto.name !== undefined && { name: dto.name }),
-      ...(dto.isOnline !== undefined && { isOnline }),
-      ...(dto.isReplacement !== undefined && { isReplacement }),
-      building: isOnline ? null : (dto.building !== undefined ? dto.building : subject.building),
-      floor: isOnline ? null : (dto.floor !== undefined ? dto.floor : subject.floor),
-      room: isOnline ? null : (dto.room !== undefined ? dto.room : subject.room),
-      ...(dto.timeStart !== undefined && { timeStart: dto.timeStart }),
-      ...(dto.timeEnd !== undefined && { timeEnd: dto.timeEnd }),
-      ...(dto.day !== undefined && { day: dto.day }),
-      endDate
+      ...(dto.name !== undefined && { name: dto.name })
     }, lecturerIds)
 
     return updated!

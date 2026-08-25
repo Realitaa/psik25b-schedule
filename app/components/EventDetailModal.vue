@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { EventSelect, SubjectSelect } from '#shared/types'
+import type { EventSelect, ScheduleWithSubject } from '#shared/types'
 import { formatEventEndDate } from '#shared/utils/date'
 import EventRenderer from '~/components/event/EventRenderer.vue'
 
 const props = defineProps<{
   open: boolean
-  event?: (EventSelect & { subject?: SubjectSelect }) | null
+  event?: (EventSelect & { schedule?: ScheduleWithSubject | null, subject?: { name?: string } | null }) | null
 }>()
 
 const emit = defineEmits<{
@@ -41,6 +41,13 @@ const authorName = computed(() => {
   if (!author) return ''
   return author.name || author.username
 })
+
+const subjectName = computed(() => {
+  return fullEventDetails.value?.schedule?.subject?.name
+    || props.event?.schedule?.subject?.name
+    || props.event?.subject?.name
+    || ''
+})
 </script>
 
 <template>
@@ -53,14 +60,31 @@ const authorName = computed(() => {
         v-if="event"
         class="space-y-4"
       >
+        <!-- Event Header with Custom Color / Icon -->
+        <div
+          v-if="event.type || event.color || event.icon"
+          class="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-semibold"
+          :style="{
+            backgroundColor: event.color ? `${event.color}15` : undefined,
+            borderColor: event.color ? `${event.color}40` : undefined,
+            color: event.color || undefined
+          }"
+        >
+          <UIcon
+            :name="event.icon || 'i-lucide-bell'"
+            class="size-4 shrink-0"
+          />
+          <span>{{ event.type || 'Event Perkuliahan' }}</span>
+        </div>
+
         <!-- Event Meta Info -->
         <div class="p-3.5 bg-neutral-50 dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 space-y-2 text-sm">
           <div
-            v-if="event.subject"
+            v-if="subjectName"
             class="flex items-center justify-between gap-2 flex-wrap"
           >
             <span class="text-muted">Mata Kuliah:</span>
-            <span class="font-semibold text-highlighted">{{ event.subject.name }}</span>
+            <span class="font-semibold text-highlighted">{{ subjectName }}</span>
           </div>
 
           <div class="flex items-center justify-between gap-2 flex-wrap">
