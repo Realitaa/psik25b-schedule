@@ -6,7 +6,7 @@ import {
   academicYearRepository,
   type AcademicYearRepository
 } from '../repositories/academic-year.repository'
-import { NotFoundException } from '../utils/exceptions'
+import { ConflictException, NotFoundException } from '../utils/exceptions'
 
 export class AcademicYearService {
   constructor(private readonly yearRepo: AcademicYearRepository = academicYearRepository) {}
@@ -20,6 +20,11 @@ export class AcademicYearService {
   }
 
   async createAcademicYear(dto: CreateAcademicYearDTO): Promise<AcademicYearSelect> {
+    const existing = await this.yearRepo.findByYearAndSemester(dto.yearStart, dto.yearEnd, dto.semester)
+    if (existing) {
+      throw new ConflictException(`Tahun ajaran ${dto.yearStart}/${dto.yearEnd} (${dto.semester.toUpperCase()}) sudah ada`)
+    }
+
     const created = await this.yearRepo.create({
       yearStart: dto.yearStart,
       yearEnd: dto.yearEnd,

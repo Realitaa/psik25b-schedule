@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { LecturerService } from '../../server/services/lecturer.service'
 import { lecturerRepository } from '../../server/repositories/lecturer.repository'
-import { ConflictException } from '../../server/utils/exceptions'
+import { ConflictException, NotFoundException } from '../../server/utils/exceptions'
 
 describe('LecturerService Feature Tests', () => {
   let service: LecturerService
@@ -44,5 +44,38 @@ describe('LecturerService Feature Tests', () => {
     })
 
     expect(created.shortname).toBe('AH')
+  })
+
+  it('should throw ConflictException if updating shortname to an existing shortname', async () => {
+    vi.spyOn(lecturerRepository, 'findById').mockResolvedValue({
+      id: 1,
+      name: 'Dr. John',
+      shortname: 'JO',
+      nip: null,
+      phone: null,
+      createdAt: null
+    })
+
+    // Shortname 'JD' already exists on another lecturer
+    vi.spyOn(lecturerRepository, 'findByShortname').mockResolvedValue({
+      id: 2,
+      name: 'Dr. Jane',
+      shortname: 'JD',
+      nip: null,
+      phone: null,
+      createdAt: null
+    })
+
+    await expect(service.updateLecturer(1, {
+      shortname: 'JD'
+    })).rejects.toThrow(ConflictException)
+  })
+
+  it('should throw NotFoundException if updating non-existing lecturer', async () => {
+    vi.spyOn(lecturerRepository, 'findById').mockResolvedValue(undefined)
+
+    await expect(service.updateLecturer(999, {
+      name: 'Non Existing'
+    })).rejects.toThrow(NotFoundException)
   })
 })

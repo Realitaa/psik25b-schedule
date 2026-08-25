@@ -35,3 +35,10 @@ export class ConflictException extends AppException {
     this.name = 'ConflictException'
   }
 }
+
+export class TooManyRequestsException extends AppException {
+  constructor(message: string = 'Terlalu banyak percobaan login. Silakan coba lagi beberapa saat lagi.') {
+    super(message, 429)
+    this.name = 'TooManyRequestsException'
+  }
+}

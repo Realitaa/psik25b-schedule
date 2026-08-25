@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AcademicYearService } from '../../server/services/academic-year.service'
 import { academicYearRepository } from '../../server/repositories/academic-year.repository'
-import { NotFoundException } from '../../server/utils/exceptions'
+import { ConflictException, NotFoundException } from '../../server/utils/exceptions'
 
 describe('AcademicYearService Feature Tests', () => {
   let service: AcademicYearService
@@ -12,6 +12,7 @@ describe('AcademicYearService Feature Tests', () => {
   })
 
   it('should create academic year and set active if isCurrentActiveYear is true', async () => {
+    vi.spyOn(academicYearRepository, 'findByYearAndSemester').mockResolvedValue(undefined)
     const mockCreated = {
       id: 1,
       yearStart: 2026,
@@ -33,6 +34,23 @@ describe('AcademicYearService Feature Tests', () => {
 
     expect(result).toEqual(mockCreated)
     expect(setActiveSpy).toHaveBeenCalledWith(1)
+  })
+
+  it('should throw ConflictException when creating duplicate academic year', async () => {
+    vi.spyOn(academicYearRepository, 'findByYearAndSemester').mockResolvedValue({
+      id: 1,
+      yearStart: 2026,
+      yearEnd: 2027,
+      semester: 'ganjil',
+      isCurrentActiveYear: false,
+      createdAt: '2026-01-01'
+    })
+
+    await expect(service.createAcademicYear({
+      yearStart: 2026,
+      yearEnd: 2027,
+      semester: 'ganjil'
+    })).rejects.toThrow(ConflictException)
   })
 
   it('should throw NotFoundException if setting active on non-existing year', async () => {

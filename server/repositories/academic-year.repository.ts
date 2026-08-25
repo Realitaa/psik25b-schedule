@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { academicYears, type AcademicYearInsert } from '../db/schema'
 import type { AcademicYearSelect } from '#shared/types'
 
@@ -13,6 +13,16 @@ export class AcademicYearRepository {
 
   async findActive(): Promise<AcademicYearSelect | undefined> {
     return await db.select().from(academicYears).where(eq(academicYears.isCurrentActiveYear, true)).get()
+  }
+
+  async findByYearAndSemester(yearStart: number, yearEnd: number, semester: 'ganjil' | 'genap'): Promise<AcademicYearSelect | undefined> {
+    return await db.select().from(academicYears).where(
+      and(
+        eq(academicYears.yearStart, yearStart),
+        eq(academicYears.yearEnd, yearEnd),
+        eq(academicYears.semester, semester)
+      )
+    ).get()
   }
 
   async create(data: AcademicYearInsert): Promise<AcademicYearSelect> {

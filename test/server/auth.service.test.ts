@@ -2,10 +2,12 @@ import bcrypt from 'bcryptjs'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AuthService } from '../../server/services/auth.service'
 import type { UserRepository } from '../../server/repositories/user.repository'
-import { UnauthorizedException } from '../../server/utils/exceptions'
+import { RateLimiter } from '../../server/utils/rate-limiter'
+import { UnauthorizedException, TooManyRequestsException } from '../../server/utils/exceptions'
 
 describe('AuthService Feature Tests', () => {
   let mockUserRepo: UserRepository
+  let rateLimiter: RateLimiter
   let authService: AuthService
 
   beforeEach(() => {
@@ -13,7 +15,8 @@ describe('AuthService Feature Tests', () => {
       findByUsername: vi.fn(),
       findById: vi.fn()
     } as unknown as UserRepository
-    authService = new AuthService(mockUserRepo)
+    rateLimiter = new RateLimiter()
+    authService = new AuthService(mockUserRepo, rateLimiter)
   })
 
   it('should successfully authenticate user with valid credentials', async () => {
@@ -64,5 +67,23 @@ describe('AuthService Feature Tests', () => {
       username: 'admin',
       password: 'wrong_password'
     })).rejects.toThrow(UnauthorizedException)
+  })
+
+  it('should throw TooManyRequestsException after 5 failed login attempts (rate limiting)', async () => {
+    vi.spyOn(mockUserRepo, 'findByUsername').mockResolvedValue(undefined)
+
+    // Fail 5 times
+    for (let i = 0; i < 5; i++) {
+      await expect(authService.authenticate({
+        username: 'attacker',
+        password: 'wrong'
+      })).rejects.toThrow(UnauthorizedException)
+    }
+
+    // 6th attempt should be blocked by rate limiter
+    await expect(authService.authenticate({
+      username: 'attacker',
+      password: 'wrong'
+    })).rejects.toThrow(TooManyRequestsException)
   })
 })
