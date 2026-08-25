@@ -62,7 +62,7 @@ const todaySchedules = computed(() => {
 })
 
 // Active Academic Year Schedules (all statuses for the table, sorted by schedule)
-const activeSchedules = computed(() => {
+const activeSchedules = computed<ScheduleWithSubject[]>(() => {
   if (!bundle.value?.schedules || !activeYear.value) return []
   const filtered = bundle.value.schedules.filter(s => s.subject?.academicYearId === activeYear.value?.id)
   return sortSchedulesByDayAndTime(filtered)
