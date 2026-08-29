@@ -23,47 +23,41 @@ defineProps<{
       </h2>
     </div>
 
-    <!-- 1. National Holiday Display -->
+    <!-- 1. Active / Upcoming Classes for Today (renders normally even on Weekend / Holiday) -->
     <div
-      v-if="dayStatus.status === 'Holiday'"
+      v-if="todaySchedules.length > 0"
       class="space-y-4"
     >
       <TodayActivityCard
-        type="holiday"
-        :holiday-description="dayStatus.description"
-        :date-str="dayStatus.dateStr"
+        v-for="item in todaySchedules"
+        :key="item.schedule.id"
+        :type="item.statusType"
+        :schedule="item.schedule"
       />
     </div>
 
-    <!-- 2. Weekend Display -->
-    <div
-      v-else-if="dayStatus.status === 'Weekend'"
-      class="space-y-4"
-    >
-      <TodayActivityCard
-        type="holiday"
-        holiday-description="Akhir Pekan (Hari Libur)"
-        :date-str="dayStatus.dateStr || todayFormatted"
-      />
-    </div>
-
-    <!-- 3. Weekday Classes List -->
+    <!-- 2. No Active Classes remaining for today -->
     <div
       v-else
       class="space-y-4"
     >
-      <div
-        v-if="todaySchedules.length > 0"
-        class="space-y-4"
-      >
-        <TodayActivityCard
-          v-for="item in todaySchedules"
-          :key="item.schedule.id"
-          :type="item.statusType"
-          :schedule="item.schedule"
-        />
-      </div>
-      <!-- Empty State: No schedules active today or all have finished -->
+      <!-- Weekend: if no classes or all classes have ended, show Holiday card -->
+      <TodayActivityCard
+        v-if="dayStatus.status === 'Weekend'"
+        type="holiday"
+        holiday-description="Akhir Pekan (Hari Libur)"
+        :date-str="dayStatus.dateStr || todayFormatted"
+      />
+
+      <!-- National Holiday: if no classes or all classes have ended, show Holiday card -->
+      <TodayActivityCard
+        v-else-if="dayStatus.status === 'Holiday'"
+        type="holiday"
+        :holiday-description="dayStatus.description || 'Libur Nasional'"
+        :date-str="dayStatus.dateStr || todayFormatted"
+      />
+
+      <!-- Weekday: No schedules or all have ended -->
       <div
         v-else
         class="flex flex-col items-center justify-center py-12 px-6 border border-dashed border-neutral-200 dark:border-neutral-800 rounded-2xl text-center"
