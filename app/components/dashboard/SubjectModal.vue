@@ -65,7 +65,6 @@ function handleSubmit() {
       <!-- Kolom Dosen InputMenu Multiple -->
       <UFormField
         label="Dosen Pengampu"
-        description="Pilih satu atau beberapa dosen pengampu mata kuliah ini"
       >
         <UInputMenu
           v-model="form.lecturerShortnames"

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { CalendarDate } from '@internationalized/date'
+import sizeof from 'object-sizeof'
 import type { EventSelect, CreateEventDTO, EventPresetSelect, ScheduleWithSubject } from '#shared/types'
 import { renderTiptapToHtml } from '~/utils/tiptap'
 
@@ -17,6 +18,7 @@ const emit = defineEmits<{
   (e: 'submit', form: CreateEventDTO, editingId: number | null): void
 }>()
 
+const toast = useToast()
 const editingId = computed(() => props.event?.id || null)
 const isEditingEventLoading = ref(false)
 
@@ -44,16 +46,30 @@ const availableIcons = [
   'i-lucide-bookmark',
   'i-lucide-book-open',
   'i-lucide-code-2',
-  'i-lucide-presentation'
+  'i-lucide-presentation',
+  'i-lucide-alert-circle',
+  'i-lucide-check-circle-2',
+  'i-lucide-clock',
+  'i-lucide-video',
+  'i-lucide-link',
+  'i-lucide-award',
+  'i-lucide-sparkles',
+  'i-lucide-pin',
+  'i-lucide-flag',
+  'i-lucide-layers'
 ]
 
-const colorOptions = [
-  { label: 'Biru (Info)', value: '#3b82f6' },
-  { label: 'Kuning / Oranye (Tugas)', value: '#f59e0b' },
-  { label: 'Merah (Ujian / Deadline)', value: '#ef4444' },
-  { label: 'Hijau (Materi)', value: '#10b981' },
-  { label: 'Ungu (Khusus)', value: '#8b5cf6' },
-  { label: 'Teal', value: '#14b8a6' }
+const colorPalette = [
+  '#3b82f6', // Blue
+  '#06b6d4', // Cyan
+  '#10b981', // Emerald
+  '#f59e0b', // Amber
+  '#ef4444', // Red
+  '#ec4899', // Pink
+  '#8b5cf6', // Purple
+  '#6366f1', // Indigo
+  '#14b8a6', // Teal
+  '#64748b' // Slate
 ]
 
 function onPresetSelected(presetIdVal?: number | null) {
@@ -108,8 +124,13 @@ function updateCalendarEndDate() {
   form.endDate = `${y}-${m}-${d}T${t}`
 }
 
+function clearDeadline() {
+  selectedCalendarDate.value = undefined
+  form.endDate = ''
+}
+
 const formattedCalendarEndDate = computed(() => {
-  if (!selectedCalendarDate.value) return null
+  if (!selectedCalendarDate.value || !form.endDate) return 'Tanpa Batas Waktu (Permanen)'
   const y = selectedCalendarDate.value.year
   const m = selectedCalendarDate.value.month
   const d = selectedCalendarDate.value.day
@@ -122,6 +143,15 @@ const formattedCalendarEndDate = computed(() => {
   })
   return `${dateFormatted}, pukul ${selectedTime.value || '23:59'} WIB`
 })
+
+const MAX_DESCRIPTION_BYTES = 1.9 * 1024 * 1024 // 1.9 MB limit
+const descriptionSizeBytes = computed(() => {
+  if (!form.description) return 0
+  return sizeof(form.description)
+})
+
+const isContentOverLimit = computed(() => descriptionSizeBytes.value > MAX_DESCRIPTION_BYTES)
+const descriptionSizeMb = computed(() => (descriptionSizeBytes.value / (1024 * 1024)).toFixed(2))
 
 watch([open, () => props.event], async ([isOpen, ev]) => {
   if (isOpen && ev) {
@@ -168,6 +198,15 @@ watch([open, () => props.event], async ([isOpen, ev]) => {
 
 function handleSubmit() {
   if (!form.scheduleId) return
+  if (isContentOverLimit.value) {
+    toast.add({
+      title: 'Ukuran Konten Terlalu Besar',
+      description: `Total ukuran konten (${descriptionSizeMb.value} MB) melebihi batas maksimal 1.9 MB. Silakan kurangi teks atau gambar.`,
+      color: 'error'
+    })
+    return
+  }
+
   emit('submit', {
     scheduleId: form.scheduleId,
     presetId: form.presetId || null,
@@ -202,7 +241,7 @@ function handleSubmit() {
           placeholder="Pilih jadwal perkuliahan..."
           class="w-full"
           @update:model-value="(val) => {
-            if (!editingId) {
+            if (!editingId && form.endDate) {
               const targetIso = getScheduleNextExpiryIso(val || null)
               setCalendarFromIsoString(targetIso)
             }
@@ -210,9 +249,12 @@ function handleSubmit() {
         />
       </UFormField>
 
-      <!-- Preset & Styling Row -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800">
-        <UFormField label="Preset Event (Cepat)">
+      <!-- Preset Event Row (Full Width with Combined Style Popover Trigger) -->
+      <div class="flex items-end gap-2.5">
+        <UFormField
+          label="Preset Event (Cepat)"
+          class="flex-1 min-w-0"
+        >
           <USelect
             v-model="form.presetId"
             :items="[
@@ -226,41 +268,95 @@ function handleSubmit() {
           />
         </UFormField>
 
-        <UFormField label="Warna Badge">
-          <div class="flex items-center gap-2">
-            <input
-              v-model="form.color"
-              type="color"
-              class="size-8 rounded border border-neutral-300 dark:border-neutral-700 cursor-pointer bg-transparent"
-            >
-            <USelect
-              v-model="form.color"
-              :items="colorOptions"
-              value-attribute="value"
-              option-attribute="label"
-              class="w-full"
-            />
-          </div>
-        </UFormField>
-
-        <UFormField label="Ikon Badge">
-          <div class="flex items-center gap-2">
+        <!-- Combined Color & Icon Popover Trigger Button -->
+        <UPopover>
+          <UButton
+            color="neutral"
+            variant="outline"
+            class="h-9 px-3 gap-2 shrink-0 flex items-center"
+            title="Atur Warna & Ikon Badge"
+          >
             <div
-              class="size-8 rounded flex items-center justify-center border border-neutral-300 dark:border-neutral-700 shrink-0"
-              :style="{ color: form.color }"
+              class="size-5 rounded flex items-center justify-center shrink-0 border border-neutral-300 dark:border-neutral-700"
+              :style="{ backgroundColor: `${form.color}20`, color: form.color }"
             >
               <UIcon
                 :name="form.icon || 'i-lucide-bell'"
-                class="size-4"
+                class="size-3.5"
               />
             </div>
-            <USelect
-              v-model="form.icon"
-              :items="availableIcons"
-              class="w-full"
+            <span class="text-xs font-medium hidden sm:inline">Warna & Ikon</span>
+            <UIcon
+              name="i-lucide-chevron-down"
+              class="size-3 text-muted"
             />
-          </div>
-        </UFormField>
+          </UButton>
+
+          <template #content>
+            <div class="p-3.5 w-72 space-y-3.5">
+              <!-- Color Selector -->
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-semibold text-highlighted">Warna Badge</span>
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-[11px] font-mono uppercase text-muted">{{ form.color }}</span>
+                    <input
+                      v-model="form.color"
+                      type="color"
+                      class="size-5 rounded cursor-pointer border border-neutral-300 dark:border-neutral-700 bg-transparent p-0"
+                      title="Pilih warna kustom"
+                    >
+                  </div>
+                </div>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <button
+                    v-for="c in colorPalette"
+                    :key="c"
+                    type="button"
+                    class="size-6 rounded-full border transition-transform hover:scale-110 flex items-center justify-center"
+                    :style="{ backgroundColor: c, borderColor: form.color === c ? '#ffffff' : 'transparent' }"
+                    :class="form.color === c ? 'ring-2 ring-primary ring-offset-1 dark:ring-offset-neutral-900' : ''"
+                    @click="form.color = c"
+                  >
+                    <UIcon
+                      v-if="form.color === c"
+                      name="i-lucide-check"
+                      class="size-3 text-white drop-shadow-xs"
+                    />
+                  </button>
+                </div>
+              </div>
+
+              <!-- Icon Grid Selector -->
+              <div class="space-y-2 pt-2 border-t border-subtle">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-semibold text-highlighted">Ikon Badge</span>
+                  <span class="text-[10px] text-muted">Pilih ikon visual</span>
+                </div>
+                <div class="grid grid-cols-5 gap-1.5 max-h-36 overflow-y-auto p-1 rounded-lg bg-neutral-100 dark:bg-neutral-900/50">
+                  <button
+                    v-for="ic in availableIcons"
+                    :key="ic"
+                    type="button"
+                    :class="[
+                      'size-8 rounded-lg flex items-center justify-center transition-all',
+                      form.icon === ic
+                        ? 'bg-white dark:bg-neutral-800 shadow-xs ring-1 ring-primary'
+                        : 'hover:bg-neutral-200 dark:hover:bg-neutral-800/60 opacity-80 hover:opacity-100'
+                    ]"
+                    :style="form.icon === ic ? { color: form.color } : {}"
+                    @click="form.icon = ic"
+                  >
+                    <UIcon
+                      :name="ic"
+                      class="size-4"
+                    />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </template>
+        </UPopover>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -289,16 +385,15 @@ function handleSubmit() {
 
       <UFormField
         label="Batas Waktu Event (Auto-Expiry)"
-        description="Gunakan kalender untuk memilih tanggal dan jam berakhirnya event. Kosongkan jika tanpa batas waktu."
       >
         <div class="space-y-2">
           <UPopover>
             <UButton
-              icon="i-lucide-calendar"
-              color="neutral"
-              variant="subtle"
+              :icon="form.endDate ? 'i-lucide-calendar' : 'i-lucide-infinity'"
+              :color="form.endDate ? 'neutral' : 'primary'"
+              :variant="form.endDate ? 'subtle' : 'soft'"
               class="w-full justify-start text-left font-normal"
-              :label="formattedCalendarEndDate || 'Pilih Tanggal & Jam Batas Waktu...'"
+              :label="formattedCalendarEndDate"
             />
 
             <template #content>
@@ -315,6 +410,16 @@ function handleSubmit() {
                     type="time"
                     class="w-32"
                     @update:model-value="updateCalendarEndDate"
+                  />
+                </div>
+                <div class="pt-2 border-t border-subtle flex justify-end">
+                  <UButton
+                    label="Hapus Batas (Tanpa Batas Waktu)"
+                    icon="i-lucide-infinity"
+                    color="neutral"
+                    variant="ghost"
+                    size="xs"
+                    @click="clearDeadline"
                   />
                 </div>
               </div>
@@ -334,13 +439,13 @@ function handleSubmit() {
               }"
             />
             <UButton
-              v-if="selectedCalendarDate"
-              label="Hapus Batas Waktu"
-              icon="i-lucide-x"
-              color="neutral"
-              variant="ghost"
+              v-if="form.endDate"
+              label="Hapus Batas Waktu (Permanen)"
+              icon="i-lucide-infinity"
+              color="warning"
+              variant="subtle"
               size="xs"
-              @click="setCalendarFromIsoString(null)"
+              @click="clearDeadline"
             />
           </div>
         </div>
@@ -348,7 +453,6 @@ function handleSubmit() {
 
       <UFormField
         label="Deskripsi & Rincian Event"
-        description="Gunakan editor untuk menyusun rincian materi, instruksi, dan gambar"
       >
         <div class="relative w-full">
           <EventEditor
@@ -366,6 +470,9 @@ function handleSubmit() {
             <span class="text-xs text-muted font-medium">Memuat deskripsi event...</span>
           </div>
         </div>
+        <p :class="['mt-2 text-xs font-medium', isContentOverLimit ? 'text-red-500' : 'text-muted']">
+          Ukuran konten saat ini: {{ descriptionSizeMb }}/1.9 MB
+        </p>
       </UFormField>
     </div>
   </FormModal>

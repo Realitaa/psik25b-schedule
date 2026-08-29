@@ -28,16 +28,30 @@ const availableIcons = [
   'i-lucide-bookmark',
   'i-lucide-book-open',
   'i-lucide-code-2',
-  'i-lucide-presentation'
+  'i-lucide-presentation',
+  'i-lucide-alert-circle',
+  'i-lucide-check-circle-2',
+  'i-lucide-clock',
+  'i-lucide-video',
+  'i-lucide-link',
+  'i-lucide-award',
+  'i-lucide-sparkles',
+  'i-lucide-pin',
+  'i-lucide-flag',
+  'i-lucide-layers'
 ]
 
-const colorOptions = [
-  { label: 'Biru (Info)', value: '#3b82f6' },
-  { label: 'Kuning / Oranye (Tugas)', value: '#f59e0b' },
-  { label: 'Merah (Ujian / Deadline)', value: '#ef4444' },
-  { label: 'Hijau (Materi)', value: '#10b981' },
-  { label: 'Ungu (Khusus)', value: '#8b5cf6' },
-  { label: 'Teal', value: '#14b8a6' }
+const colorPalette = [
+  '#3b82f6', // Blue
+  '#06b6d4', // Cyan
+  '#10b981', // Emerald
+  '#f59e0b', // Amber
+  '#ef4444', // Red
+  '#ec4899', // Pink
+  '#8b5cf6', // Purple
+  '#6366f1', // Indigo
+  '#14b8a6', // Teal
+  '#64748b' // Slate
 ]
 
 const editingId = computed(() => props.preset?.id || null)
@@ -83,45 +97,67 @@ function handleSubmit() {
         />
       </UFormField>
 
+      <!-- Color Swatches & Picker -->
       <UFormField
         label="Warna Badge"
         required
       >
-        <div class="flex items-center gap-2">
-          <input
-            v-model="form.color"
-            type="color"
-            class="size-8 rounded border border-neutral-300 dark:border-neutral-700 cursor-pointer bg-transparent"
-          >
-          <USelect
-            v-model="form.color"
-            :items="colorOptions"
-            value-attribute="value"
-            option-attribute="label"
-            class="w-full"
-          />
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono uppercase text-muted">{{ form.color }}</span>
+            <div class="flex items-center gap-1.5">
+              <span class="text-xs text-muted">Kustom:</span>
+              <input
+                v-model="form.color"
+                type="color"
+                class="size-6 rounded cursor-pointer border border-neutral-300 dark:border-neutral-700 bg-transparent p-0"
+              >
+            </div>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <button
+              v-for="c in colorPalette"
+              :key="c"
+              type="button"
+              class="size-7 rounded-full border transition-transform hover:scale-110 flex items-center justify-center"
+              :style="{ backgroundColor: c, borderColor: form.color === c ? '#ffffff' : 'transparent' }"
+              :class="form.color === c ? 'ring-2 ring-primary ring-offset-1 dark:ring-offset-neutral-900' : ''"
+              @click="form.color = c"
+            >
+              <UIcon
+                v-if="form.color === c"
+                name="i-lucide-check"
+                class="size-3.5 text-white drop-shadow-xs"
+              />
+            </button>
+          </div>
         </div>
       </UFormField>
 
+      <!-- Visual Icon Grid -->
       <UFormField
-        label="Icon Badge"
+        label="Ikon Badge"
         required
       >
-        <div class="flex items-center gap-2">
-          <div
-            class="size-8 rounded flex items-center justify-center border border-neutral-300 dark:border-neutral-700 shrink-0"
-            :style="{ color: form.color }"
+        <div class="grid grid-cols-5 sm:grid-cols-10 gap-1.5 p-2 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900">
+          <button
+            v-for="ic in availableIcons"
+            :key="ic"
+            type="button"
+            :class="[
+              'size-9 rounded-lg flex items-center justify-center transition-all',
+              form.icon === ic
+                ? 'bg-white dark:bg-neutral-800 shadow-xs ring-2 ring-primary'
+                : 'hover:bg-neutral-200 dark:hover:bg-neutral-800/60 opacity-80 hover:opacity-100'
+            ]"
+            :style="form.icon === ic ? { color: form.color } : {}"
+            @click="form.icon = ic"
           >
             <UIcon
-              :name="form.icon || 'i-lucide-bell'"
-              class="size-4"
+              :name="ic"
+              class="size-4.5"
             />
-          </div>
-          <USelect
-            v-model="form.icon"
-            :items="availableIcons"
-            class="w-full"
-          />
+          </button>
         </div>
       </UFormField>
     </div>

@@ -189,7 +189,6 @@ function handleSubmit() {
 
         <UFormField
           label="Tanggal Pelaksanaan Kuliah Pengganti"
-          description="Hari pelaksanaan akan ditentukan secara otomatis berdasarkan tanggal yang dipilih"
           required
         >
           <UPopover>

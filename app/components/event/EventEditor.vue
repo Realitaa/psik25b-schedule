@@ -30,9 +30,6 @@ const imageInputRef = ref<HTMLInputElement | null>(null)
 const activeEditorInstance = ref<TipTapEditorInstance | null>(null)
 const toast = useToast()
 
-// Maximum file size for inline base64 image (500 KB to avoid SQLite D1 query payload limit)
-const MAX_IMAGE_SIZE_BYTES = 500 * 1024
-
 function triggerImageUpload(editor: unknown) {
   activeEditorInstance.value = editor as TipTapEditorInstance
   imageInputRef.value?.click()
@@ -41,19 +38,6 @@ function triggerImageUpload(editor: unknown) {
 function onImageFileSelected(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
-
-  // Validate image size
-  if (file.size > MAX_IMAGE_SIZE_BYTES) {
-    const sizeKb = Math.round(file.size / 1024)
-    toast.add({
-      title: 'Ukuran Gambar Terlalu Besar',
-      description: `Gambar yang diunggah berukuran ${sizeKb} KB. Batas maksimal adalah 500 KB untuk mencegah error penyimpanan database. Silakan kompres gambar terlebih dahulu.`,
-      color: 'warning',
-      icon: 'i-lucide-alert-triangle'
-    })
-    if (imageInputRef.value) imageInputRef.value.value = ''
-    return
-  }
 
   const reader = new FileReader()
   reader.onload = (event) => {
@@ -70,7 +54,7 @@ function onImageFileSelected(e: Event) {
 </script>
 
 <template>
-  <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden bg-white dark:bg-neutral-950">
+  <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden bg-white dark:bg-neutral-950 transition-colors">
     <!-- Hidden file input for base64 image upload -->
     <input
       ref="imageInputRef"

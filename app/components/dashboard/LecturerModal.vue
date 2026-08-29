@@ -67,7 +67,6 @@ function handleSubmit() {
 
       <UFormField
         label="Kode / Shortname"
-        description="Kode unik singkat untuk pengenal dosen"
         required
       >
         <UInput
