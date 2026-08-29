@@ -40,7 +40,7 @@ const scheduleColumns = [
       <div class="flex items-center gap-2 sm:gap-3 flex-wrap mt-4 pt-3 border-t border-subtle/50 text-xs">
         <span class="text-muted font-medium">Legenda:</span>
         <div class="flex items-center gap-1.5">
-          <span class="size-2.5 rounded-full bg-emerald-500" />
+          <span class="size-2.5 rounded-full bg-white" />
           <span class="text-muted">Jadwal Tetap Aktif</span>
         </div>
         <div class="flex items-center gap-1.5">
@@ -57,7 +57,7 @@ const scheduleColumns = [
         </div>
         <div class="flex items-center gap-1.5">
           <span class="size-2.5 rounded-full bg-neutral-400 dark:bg-neutral-600" />
-          <span class="text-muted">Selesai / Ended</span>
+          <span class="text-muted">Selesai</span>
         </div>
       </div>
     </div>

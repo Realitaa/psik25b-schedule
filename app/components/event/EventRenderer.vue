@@ -56,7 +56,7 @@ const viewerOptions = {
       v-viewer="viewerOptions"
       :class="[
         editorTheme.slots.base,
-        'text-sm wrap-break-word [&_img]:cursor-zoom-in [&_img]:rounded-lg [&_img]:max-h-96 [&_img]:w-auto [&_img]:object-contain [&_img]:shadow-sm hover:[&_img]:opacity-90 transition-opacity'
+        'text-sm px-0! max-h-112 overflow-y-auto wrap-break-word [&_img]:cursor-zoom-in [&_img]:rounded-lg [&_img]:max-h-96 [&_img]:w-auto [&_img]:object-contain [&_img]:shadow-sm hover:[&_img]:opacity-90 transition-opacity'
       ]"
       v-html="renderedHtml"
     />
