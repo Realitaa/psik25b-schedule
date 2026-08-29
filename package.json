@@ -11,7 +11,7 @@
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "deploy:config": "node scripts/deploy-config.mjs",
     "db:migrate:remote": "pnpm deploy:config && wrangler d1 migrations apply DB --remote --config wrangler.deploy.jsonc",
-    "deploy": "pnpm build && pnpm db:migrate:remote && wrangler deploy .output/server/index.mjs --assets .output/public --config wrangler.deploy.jsonc",
+    "deploy": "pnpm db:migrate:remote && wrangler deploy .output/server/index.mjs --assets .output/public --config wrangler.deploy.jsonc",
     "lint": "eslint .",
     "typecheck": "nuxt typecheck",
     "test": "vitest run",
