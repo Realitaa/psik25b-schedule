@@ -54,6 +54,7 @@ const subjectName = computed(() => {
   <UModal
     v-model:open="isOpen"
     :title="event?.title || 'Detail Event Perkuliahan'"
+    :dismissible="false"
   >
     <template #body>
       <div

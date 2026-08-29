@@ -5,14 +5,37 @@
   --font-sans: 'Poppins', sans-serif;
 }
 
-/* Custom styling for v-viewer / Viewer.js close button */
+/* Custom styling & z-index for v-viewer / Viewer.js */
+.viewer-container {
+  z-index: 99999 !important;
+  pointer-events: auto !important;
+}
+
+.viewer-canvas {
+  pointer-events: auto !important;
+  cursor: grab !important;
+}
+
+.viewer-canvas:active {
+  cursor: grabbing !important;
+}
+
+.viewer-toolbar,
+.viewer-button,
+.viewer-navbar,
+.viewer-tooltip {
+  pointer-events: auto !important;
+  z-index: 100000 !important;
+}
+
+/* Custom styling for Viewer.js close button */
 .viewer-button.viewer-close {
   top: 1.5rem !important;
   right: 1.5rem !important;
   width: 44px !important;
   height: 44px !important;
   border-radius: 9999px !important;
-  background-color: rgba(15, 23, 42, 0.75) !important;
+  background-color: rgba(15, 23, 42, 0.8) !important;
   backdrop-filter: blur(12px) !important;
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
@@ -22,11 +45,10 @@
   cursor: pointer !important;
   overflow: visible !important;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  z-index: 2050 !important;
 }
 
 .viewer-button.viewer-close:hover {
-  background-color: rgba(15, 23, 42, 0.95) !important;
+  background-color: rgba(15, 23, 42, 1) !important;
   border-color: rgba(255, 255, 255, 0.4) !important;
   transform: scale(1.08) !important;
 }

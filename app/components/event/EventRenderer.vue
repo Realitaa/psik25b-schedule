@@ -25,6 +25,26 @@ const renderedHtml = computed(() => {
   const html = renderTiptapToHtml(props.content)
   return cleanHtmlImages(html)
 })
+
+const viewerOptions = {
+  inline: false,
+  button: true,
+  navbar: false,
+  title: false,
+  toolbar: true,
+  tooltip: true,
+  movable: true,
+  zoomable: true,
+  rotatable: true,
+  scalable: true,
+  transition: true,
+  fullscreen: true,
+  keyboard: true,
+  zoomOnWheel: true,
+  zoomOnTouch: true,
+  toggleOnDblclick: true,
+  backdrop: true
+}
 </script>
 
 <template>
@@ -32,8 +52,8 @@ const renderedHtml = computed(() => {
     <!-- eslint-disable vue/no-v-html -->
     <div
       v-if="renderedHtml"
-      v-viewer
-      class="prose dark:prose-invert max-w-none text-sm break-words [&_img]:cursor-zoom-in [&_img]:rounded-lg [&_img]:max-h-96 [&_img]:w-auto [&_img]:object-contain [&_img]:shadow-sm hover:[&_img]:opacity-90 transition-opacity"
+      v-viewer="viewerOptions"
+      class="prose dark:prose-invert max-w-none text-sm wrap-break-word [&_img]:cursor-zoom-in [&_img]:rounded-lg [&_img]:max-h-96 [&_img]:w-auto [&_img]:object-contain [&_img]:shadow-sm hover:[&_img]:opacity-90 transition-opacity"
       v-html="renderedHtml"
     />
     <!-- eslint-enable vue/no-v-html -->
