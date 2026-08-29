@@ -107,7 +107,7 @@ const subjectName = computed(() => {
             v-if="event.author || fullEventDetails?.author"
             class="flex items-center justify-between gap-2 flex-wrap"
           >
-            <span class="text-muted">Dibuat Oleh:</span>
+            <span class="text-muted">Kontributor:</span>
             <span class="font-medium text-highlighted flex items-center gap-1.5">
               <UIcon
                 name="i-lucide-user"

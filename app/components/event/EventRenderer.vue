@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import editorTheme from '#build/ui/editor'
 import type { TipTapDoc } from '#shared/types'
 import { renderTiptapToHtml } from '~/utils/tiptap'
 
@@ -53,7 +54,10 @@ const viewerOptions = {
     <div
       v-if="renderedHtml"
       v-viewer="viewerOptions"
-      class="prose dark:prose-invert max-w-none text-sm wrap-break-word [&_img]:cursor-zoom-in [&_img]:rounded-lg [&_img]:max-h-96 [&_img]:w-auto [&_img]:object-contain [&_img]:shadow-sm hover:[&_img]:opacity-90 transition-opacity"
+      :class="[
+        editorTheme.slots.base,
+        'text-sm wrap-break-word [&_img]:cursor-zoom-in [&_img]:rounded-lg [&_img]:max-h-96 [&_img]:w-auto [&_img]:object-contain [&_img]:shadow-sm hover:[&_img]:opacity-90 transition-opacity'
+      ]"
       v-html="renderedHtml"
     />
     <!-- eslint-enable vue/no-v-html -->
